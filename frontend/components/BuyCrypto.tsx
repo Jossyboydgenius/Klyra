@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Web3Container, Web3Card, Web3Button } from './Web3Theme';
 
 interface Country {
   code: string;
@@ -82,72 +83,72 @@ export default function BuyCrypto() {
       } else {
         setError(data.error || 'Failed to initialize payment');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to process request');
     } finally {
       setLoading(false);
     }
   };
 
-  const selectedCountryData = COUNTRIES.find(c => c.code === selectedCountry);
   const availableNetworks = selectedAsset ? 
     NETWORKS.filter(n => CRYPTO_ASSETS.find(a => a.symbol === selectedAsset)?.networks.includes(n.id)) : 
     [];
 
   return (
-    <div className="max-w-2xl mx-auto p-6">
+    <Web3Container>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Buy Cryptocurrency</h1>
-        <p className="text-gray-600">
+        <h1 className="text-2xl font-bold text-white mb-2">Buy Cryptocurrency</h1>
+        <p className="text-indigo-200/80">
           Purchase crypto using mobile money and bank transfers. Powered by Paystack and Coinbase.
         </p>
       </div>
 
       {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-red-600">{error}</p>
+        <div className="mb-4 p-4 bg-red-500/20 border border-red-400/30 rounded-lg">
+          <p className="text-red-300">{error}</p>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Country Selection */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Country
-          </label>
-          <select
-            value={selectedCountry}
-            onChange={(e) => setSelectedCountry(e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            required
-          >
-            <option value="">Select your country</option>
-            {COUNTRIES.map((country) => (
-              <option key={country.code} value={country.code}>
-                {country.flag} {country.name} ({country.currency})
-              </option>
-            ))}
-          </select>
-        </div>
+      <Web3Card>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Country Selection */}
+          <div>
+            <label className="block text-sm font-medium text-white mb-2">
+              Country
+            </label>
+            <select
+              value={selectedCountry}
+              onChange={(e) => setSelectedCountry(e.target.value)}
+              className="w-full p-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-indigo-200/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm"
+              required
+            >
+              <option value="" className="bg-slate-800 text-white">Select your country</option>
+              {COUNTRIES.map((country) => (
+                <option key={country.code} value={country.code} className="bg-slate-800 text-white">
+                  {country.flag} {country.name} ({country.currency})
+                </option>
+              ))}
+            </select>
+          </div>
 
-        {/* Crypto Asset Selection */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Cryptocurrency
-          </label>
-          <select
-            value={selectedAsset}
-            onChange={(e) => {
-              setSelectedAsset(e.target.value);
-              setSelectedNetwork(''); // Reset network when asset changes
-            }}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            required
-          >
-            <option value="">Select cryptocurrency</option>
-            {CRYPTO_ASSETS.map((asset) => (
-              <option key={asset.symbol} value={asset.symbol}>
-                {asset.name} ({asset.symbol})
+          {/* Crypto Asset Selection */}
+          <div>
+            <label className="block text-sm font-medium text-white mb-2">
+              Cryptocurrency
+            </label>
+            <select
+              value={selectedAsset}
+              onChange={(e) => {
+                setSelectedAsset(e.target.value);
+                setSelectedNetwork(''); // Reset network when asset changes
+              }}
+              className="w-full p-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-indigo-200/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm"
+              required
+            >
+              <option value="" className="bg-slate-800 text-white">Select cryptocurrency</option>
+              {CRYPTO_ASSETS.map((asset) => (
+              <option key={asset.symbol} value={asset.symbol} className="bg-slate-800 text-white">
+                {asset.symbol} - {asset.name}
               </option>
             ))}
           </select>
@@ -156,18 +157,18 @@ export default function BuyCrypto() {
         {/* Network Selection */}
         {selectedAsset && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-white mb-2">
               Network
             </label>
             <select
               value={selectedNetwork}
               onChange={(e) => setSelectedNetwork(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full p-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-indigo-200/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm"
               required
             >
-              <option value="">Select network</option>
+              <option value="" className="bg-slate-800 text-white">Select network</option>
               {availableNetworks.map((network) => (
-                <option key={network.id} value={network.id}>
+                <option key={network.id} value={network.id} className="bg-slate-800 text-white">
                   {network.name} - {network.description}
                 </option>
               ))}
@@ -177,14 +178,14 @@ export default function BuyCrypto() {
 
         {/* Amount Input */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-white mb-2">
             Amount ({selectedAsset || 'Crypto'})
           </label>
           <input
             type="number"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full p-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-indigo-200/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm"
             placeholder="Enter amount"
             min="0.01"
             step="0.01"
@@ -194,42 +195,43 @@ export default function BuyCrypto() {
 
         {/* Wallet Address Input */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-white mb-2">
             Your Wallet Address
           </label>
           <input
             type="text"
             value={walletAddress}
             onChange={(e) => setWalletAddress(e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full p-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-indigo-200/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm"
             placeholder="0x..."
             required
           />
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-indigo-200/70 mt-1">
             Enter the wallet address where you want to receive your {selectedAsset || 'crypto'}
           </p>
         </div>
 
         {/* Submit Button */}
-        <button
+        <Web3Button
           type="submit"
           disabled={loading}
-          className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+          className="w-full"
         >
           {loading ? 'Processing...' : `Buy ${selectedAsset || 'Crypto'}`}
-        </button>
+        </Web3Button>
       </form>
+      </Web3Card>
 
       {/* Info Section */}
-      <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <h3 className="font-semibold text-blue-900 mb-2">How it works:</h3>
-        <ol className="text-sm text-blue-800 space-y-1">
+      <Web3Card className="mt-8 bg-blue-500/20 border-blue-400/30">
+        <h3 className="font-semibold text-blue-300 mb-2">How it works:</h3>
+        <ol className="text-sm text-blue-200 space-y-1">
           <li>1. Select your country, cryptocurrency, and network</li>
           <li>2. Enter the amount and your wallet address</li>
           <li>3. Complete payment using mobile money or bank transfer</li>
           <li>4. Receive crypto directly in your wallet</li>
         </ol>
-      </div>
-    </div>
+      </Web3Card>
+    </Web3Container>
   );
 }

@@ -2,8 +2,7 @@
 import React, { useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { projectId, publicAnonKey } from '../lib/supabase/info';
-import { Button } from './ui/button';
-import { Card } from './ui/card';
+import { Web3Container, Web3Card, Web3Button } from './Web3Theme';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
@@ -117,26 +116,26 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 to-purple-700 flex items-center justify-center p-4">
+    <Web3Container className="min-h-screen flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="bg-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-            <Wallet className="w-8 h-8 text-blue-600" />
+          <div className="bg-gradient-to-br from-cyan-400 to-violet-500 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 shadow-xl shadow-cyan-500/25">
+            <Wallet className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white">Welcome to Paymaster</h1>
-          <p className="text-blue-100 text-sm">Sign in to manage your finances</p>
+          <h1 className="text-2xl font-bold text-white">Welcome to Klyra</h1>
+          <p className="text-indigo-200/80 text-sm">Sign in to manage your finances</p>
         </div>
 
-        <Card className="bg-white p-6">
+        <Web3Card className="p-6">
           <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="signin">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 mb-6 bg-white/10 p-1 rounded-xl">
+              <TabsTrigger value="signin" className="text-white data-[state=active]:bg-white/20 data-[state=active]:text-white rounded-lg">Sign In</TabsTrigger>
+              <TabsTrigger value="signup" className="text-white data-[state=active]:bg-white/20 data-[state=active]:text-white rounded-lg">Sign Up</TabsTrigger>
             </TabsList>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg mb-4 flex items-start gap-2">
+              <div className="bg-red-500/20 border border-red-400/30 text-red-300 px-4 py-3 rounded-lg mb-4 flex items-start gap-2">
                 <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
                 <span className="text-sm">{error}</span>
               </div>
@@ -145,19 +144,20 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
             <TabsContent value="signin">
               <form onSubmit={handleSignin} className="space-y-4">
                 <div>
-                  <Label htmlFor="signin-email">Email</Label>
+                  <Label htmlFor="signin-email" className="text-white font-medium">Email</Label>
                   <Input
                     id="signin-email"
                     type="email"
                     placeholder="Enter your email"
                     value={formData.email}
                     onChange={(e) => handleInputChange('email', e.target.value)}
+                    className="bg-white/5 border-white/20 text-white placeholder-white/70 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm"
                     required
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="signin-password">Password</Label>
+                  <Label htmlFor="signin-password" className="text-white font-medium">Password</Label>
                   <div className="relative">
                     <Input
                       id="signin-password"
@@ -165,66 +165,70 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                       placeholder="Enter your password"
                       value={formData.password}
                       onChange={(e) => handleInputChange('password', e.target.value)}
+                      className="bg-white/5 border-white/20 text-white placeholder-white/70 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm pr-10"
                       required
                     />
-                    <Button
+                    <Web3Button
                       type="button"
                       variant="ghost"
-                      size="sm"
                       className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0"
                       onClick={() => setShowPassword(!showPassword)}
+                      icon
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </Button>
+                    </Web3Button>
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Web3Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? 'Signing in...' : 'Sign In'}
-                </Button>
+                </Web3Button>
               </form>
             </TabsContent>
 
             <TabsContent value="signup">
               <form onSubmit={handleSignup} className="space-y-4">
                 <div>
-                  <Label htmlFor="signup-name">Full Name</Label>
+                  <Label htmlFor="signup-name" className="text-white font-medium">Full Name</Label>
                   <Input
                     id="signup-name"
                     type="text"
                     placeholder="Enter your full name"
                     value={formData.name}
                     onChange={(e) => handleInputChange('name', e.target.value)}
+                    className="bg-white/5 border-white/20 text-white placeholder-white/70 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm"
                     required
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="signup-email">Email</Label>
+                  <Label htmlFor="signup-email" className="text-white font-medium">Email</Label>
                   <Input
                     id="signup-email"
                     type="email"
                     placeholder="Enter your email"
                     value={formData.email}
                     onChange={(e) => handleInputChange('email', e.target.value)}
+                    className="bg-white/5 border-white/20 text-white placeholder-white/70 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm"
                     required
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="signup-phone">Phone Number</Label>
+                  <Label htmlFor="signup-phone" className="text-white font-medium">Phone Number</Label>
                   <Input
                     id="signup-phone"
                     type="tel"
                     placeholder="Enter your phone number"
                     value={formData.phone}
                     onChange={(e) => handleInputChange('phone', e.target.value)}
+                    className="bg-white/5 border-white/20 text-white placeholder-white/70 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm"
                     required
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="signup-password">Password</Label>
+                  <Label htmlFor="signup-password" className="text-white font-medium">Password</Label>
                   <div className="relative">
                     <Input
                       id="signup-password"
@@ -232,44 +236,46 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                       placeholder="Create a password"
                       value={formData.password}
                       onChange={(e) => handleInputChange('password', e.target.value)}
+                      className="bg-white/5 border-white/20 text-white placeholder-white/70 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm pr-10"
                       required
                     />
-                    <Button
+                    <Web3Button
                       type="button"
                       variant="ghost"
-                      size="sm"
                       className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0"
                       onClick={() => setShowPassword(!showPassword)}
+                      icon
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </Button>
+                    </Web3Button>
                   </div>
                 </div>
 
                 <div>
-                  <Label htmlFor="signup-confirm">Confirm Password</Label>
+                  <Label htmlFor="signup-confirm" className="text-white font-medium">Confirm Password</Label>
                   <Input
                     id="signup-confirm"
                     type={showPassword ? 'text' : 'password'}
                     placeholder="Confirm your password"
                     value={formData.confirmPassword}
                     onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                    className="bg-white/5 border-white/20 text-white placeholder-white/70 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm"
                     required
                   />
                 </div>
 
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Web3Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? 'Creating account...' : 'Create Account'}
-                </Button>
+                </Web3Button>
               </form>
             </TabsContent>
           </Tabs>
-        </Card>
+        </Web3Card>
 
-        <p className="text-center text-blue-100 text-xs mt-4">
+        <p className="text-center text-indigo-200/70 text-xs mt-4">
           By continuing, you agree to our Terms of Service and Privacy Policy
         </p>
       </div>
-    </div>
+    </Web3Container>
   );
 };

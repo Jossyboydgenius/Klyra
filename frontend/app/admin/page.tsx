@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { adminAuthService } from '@/lib/auth/admin-auth';
+import { Web3Container, Web3Card, Web3Button } from '@/components/Web3Theme';
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState('');
@@ -33,7 +33,7 @@ export default function AdminLoginPage() {
       } else {
         localStorage.removeItem('admin_token');
       }
-    } catch (error) {
+    } catch {
       localStorage.removeItem('admin_token');
     }
   };
@@ -60,7 +60,7 @@ export default function AdminLoginPage() {
       } else {
         setError(data.error || 'Login failed');
       }
-    } catch (error) {
+    } catch {
       setError('Login failed. Please try again.');
     } finally {
       setLoading(false);
@@ -68,29 +68,29 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <Web3Container className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="text-center">
-          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
+          <h2 className="mt-6 text-3xl font-extrabold text-white">
             Admin Panel
           </h2>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="mt-2 text-sm text-indigo-200/80">
             Sign in to manage crypto transactions
           </p>
         </div>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+        <Web3Card className="py-8 px-4 sm:px-10">
           <form className="space-y-6" onSubmit={handleLogin}>
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
+              <div className="bg-red-500/20 border border-red-400/30 text-red-300 px-4 py-3 rounded">
                 {error}
               </div>
             )}
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="email" className="block text-sm font-medium text-white">
                 Email address
               </label>
               <div className="mt-1">
@@ -102,13 +102,13 @@ export default function AdminLoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className="appearance-none block w-full px-3 py-2 bg-white/5 border border-white/20 rounded-md text-white placeholder-indigo-200/50 focus:outline-none focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm"
                 />
               </div>
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="password" className="block text-sm font-medium text-white">
                 Password
               </label>
               <div className="mt-1">
@@ -120,36 +120,36 @@ export default function AdminLoginPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className="appearance-none block w-full px-3 py-2 bg-white/5 border border-white/20 rounded-md text-white placeholder-indigo-200/50 focus:outline-none focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm"
                 />
               </div>
             </div>
 
             <div>
-              <button
+              <Web3Button
                 type="submit"
                 disabled={loading}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400"
+                className="w-full"
               >
                 {loading ? 'Signing in...' : 'Sign in'}
-              </button>
+              </Web3Button>
             </div>
           </form>
 
           <div className="mt-6">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
+                <div className="w-full border-t border-white/20" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">
+                <span className="px-2 bg-slate-900/80 text-indigo-200/70">
                   Secure admin access
                 </span>
               </div>
             </div>
           </div>
-        </div>
+        </Web3Card>
       </div>
-    </div>
+    </Web3Container>
   );
 }

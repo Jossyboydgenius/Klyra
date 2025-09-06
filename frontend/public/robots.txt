@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+
+# Klyra Web3 Super App
+# Your ultimate bridge between traditional finance and Web3
+
+Sitemap: https://klyra.app/sitemap.xml

@@ -6,6 +6,15 @@ const nextConfig = {
     config.externals.push("pino-pretty", "lokijs", "encoding");
     return config;
   },
+  // Configure turbopack for faster builds
+  turbopack: {
+    // Set root directory to avoid warnings about multiple lockfiles
+    root: process.cwd(),
+    // Configure rules (formerly loaders)
+    rules: {
+      // Add any specific rule configurations if needed in the future
+    },
+  },
 };
 
 export default nextConfig;

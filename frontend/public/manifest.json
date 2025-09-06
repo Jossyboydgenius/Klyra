@@ -1,0 +1,54 @@
+{
+  "name": "Klyra - Your Web3 Super App",
+  "short_name": "Klyra",
+  "description": "The ultimate Web3 mobile app that bridges traditional finance and crypto. Connect your banks, mobile money, credit cards, and crypto wallets in one secure place.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1e1b4b",
+  "theme_color": "#6366f1",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.svg",
+      "sizes": "180x180",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["finance", "productivity", "business"],
+  "lang": "en",
+  "scope": "/",
+  "shortcuts": [
+    {
+      "name": "Buy Crypto",
+      "short_name": "Buy",
+      "description": "Buy cryptocurrency with mobile money or bank transfer",
+      "url": "/?action=buy",
+      "icons": [
+        {
+          "src": "/favicon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "name": "Send Crypto",
+      "short_name": "Send",
+      "description": "Send cryptocurrency to any wallet",
+      "url": "/?action=send",
+      "icons": [
+        {
+          "src": "/favicon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
+  ]
+}

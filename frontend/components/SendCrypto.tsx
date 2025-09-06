@@ -548,7 +548,7 @@ export const SendCrypto: React.FC<SendCryptoProps> = ({
         {/* Header */}
         <div className="text-center">
           <h1 className="text-2xl font-semibold text-gray-900 mb-2">Send Cryptocurrency</h1>
-          <p className="text-gray-600">Send crypto to other Paymaster users</p>
+          <p className="text-gray-600">Send crypto to other Klyra users</p>
         </div>
 
         {/* Progress Indicator */}

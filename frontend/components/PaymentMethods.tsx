@@ -5,8 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { projectId } from '../lib/supabase/info';
 import { PAYMENT_METHOD_TYPES } from '../lib/constants';
-import { Card } from './ui/card';
-import { Button } from './ui/button';
+import { Web3Container, Web3Card, Web3Button } from './Web3Theme';
 import { Badge } from './ui/badge';
 import { 
   Plus, 
@@ -21,7 +20,7 @@ import { AddPaymentMethod } from './AddPaymentMethod';
 
 interface PaymentMethodsProps {
   accessToken: string;
-  onRefresh: () => void;
+  onRefreshAction: () => void;
 }
 
 interface PaymentMethod {
@@ -34,7 +33,7 @@ interface PaymentMethod {
   created_at: string;
 }
 
-export const PaymentMethods: React.FC<PaymentMethodsProps> = ({ accessToken, onRefresh }) => {
+export const PaymentMethods: React.FC<PaymentMethodsProps> = ({ accessToken, onRefreshAction }) => {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -55,30 +54,20 @@ export const PaymentMethods: React.FC<PaymentMethodsProps> = ({ accessToken, onR
 
       if (response.ok) {
         const data = await response.json();
-        setPaymentMethods(data.paymentMethods || []);
+        setPaymentMethods(data.payment_methods || []);
       }
-    } catch (error) {
-      console.log('Error fetching payment methods:', error);
+    } catch {
+      console.error('Error fetching payment methods');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleAddPaymentMethod = (type: string) => {
-    setSelectedType(type);
-    setShowAddForm(true);
-  };
+  const deletePaymentMethod = async (methodId: string) => {
+    if (!confirm('Are you sure you want to delete this payment method?')) return;
 
-  const handlePaymentMethodAdded = () => {
-    setShowAddForm(false);
-    setSelectedType('');
-    fetchPaymentMethods();
-    onRefresh();
-  };
-
-  const handleDeletePaymentMethod = async (id: string) => {
     try {
-      const response = await fetch(`https://${projectId}.supabase.co/functions/v1/${process.env.NEXT_PUBLIC_SUPABASE_FUNCTION_NAME}/payment-methods/${id}`, {
+      const response = await fetch(`https://${projectId}.supabase.co/functions/v1/${process.env.NEXT_PUBLIC_SUPABASE_FUNCTION_NAME}/payment-methods/${methodId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -87,12 +76,19 @@ export const PaymentMethods: React.FC<PaymentMethodsProps> = ({ accessToken, onR
       });
 
       if (response.ok) {
-        fetchPaymentMethods();
-        onRefresh();
+        await fetchPaymentMethods();
+        onRefreshAction();
       }
-    } catch (error) {
-      console.log('Error deleting payment method:', error);
+    } catch {
+      console.error('Error deleting payment method');
     }
+  };
+
+  const handleAddSuccess = () => {
+    setShowAddForm(false);
+    setSelectedType('');
+    fetchPaymentMethods();
+    onRefreshAction();
   };
 
   const getPaymentMethodIcon = (type: string) => {
@@ -107,21 +103,14 @@ export const PaymentMethods: React.FC<PaymentMethodsProps> = ({ accessToken, onR
     }
   };
 
-  const getPaymentMethodTypeInfo = (type: string) => {
-    return PAYMENT_METHOD_TYPES.find(pmt => pmt.type === type);
-  };
-
   const formatPaymentMethodDetails = (method: PaymentMethod) => {
-    const typeInfo = getPaymentMethodTypeInfo(method.type);
-    if (!typeInfo) return method.name;
-
     switch (method.type) {
       case 'momo':
-        return `${method.details.provider} • ${method.details.phone}`;
+        return `${method.details.provider} - ${method.details.phone_number}`;
       case 'bank':
-        return `${method.details.bank_name} • •••• ${method.details.account_number?.slice(-4)}`;
+        return `${method.details.bank_name} - ${method.details.account_number?.slice(-4)}`;
       case 'card':
-        return `•••• •••• •••• ${method.details.card_number?.slice(-4)}`;
+        return `Card ending ${method.details.card_number?.slice(-4)}`;
       default:
         return method.name;
     }
@@ -130,141 +119,161 @@ export const PaymentMethods: React.FC<PaymentMethodsProps> = ({ accessToken, onR
   if (showAddForm) {
     return (
       <AddPaymentMethod
-        type={selectedType}
         accessToken={accessToken}
-        onSuccess={handlePaymentMethodAdded}
-        onCancel={() => setShowAddForm(false)}
+        type={selectedType}
+        onSuccess={handleAddSuccess}
+        onCancel={() => {
+          setShowAddForm(false);
+          setSelectedType('');
+        }}
       />
     );
   }
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading payment methods...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-md mx-auto space-y-6">
-        {/* Header */}
-        <div className="text-center">
-          <h1 className="text-2xl font-semibold text-gray-900 mb-2">Payment Methods</h1>
-          <p className="text-gray-600">Manage your traditional finance accounts</p>
+    <Web3Container>
+      <div className="max-w-2xl mx-auto">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-white mb-2">Payment Methods</h1>
+          <p className="text-indigo-200/80">
+            Manage your payment methods for buying and selling cryptocurrency
+          </p>
         </div>
 
-        {/* Payment Methods Grid */}
-        <div className="grid grid-cols-2 gap-4">
-          {/* Add Payment Method Cards */}
-          {PAYMENT_METHOD_TYPES.map((type) => {
-            const IconComponent = type.icon === 'Smartphone' ? Smartphone : CreditCard;
-            return (
-              <Card 
-                key={type.type}
-                className="p-4 cursor-pointer hover:shadow-md transition-shadow border-dashed border-2 border-gray-300 hover:border-blue-400"
-                onClick={() => handleAddPaymentMethod(type.type)}
-              >
-                <div className="text-center space-y-3">
-                  <div className={`w-12 h-12 rounded-full ${type.color} flex items-center justify-center mx-auto`}>
-                    <Plus className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900 text-sm">{type.name}</p>
-                    <p className="text-xs text-gray-600 leading-tight">{type.description}</p>
-                  </div>
+        {isLoading ? (
+          <Web3Card>
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto"></div>
+              <p className="text-indigo-200/70 mt-4">Loading payment methods...</p>
+            </div>
+          </Web3Card>
+        ) : (
+          <>
+            {/* Add New Payment Method */}
+            <Web3Card className="mb-6">
+              <h2 className="text-lg font-semibold text-white mb-4">Add New Payment Method</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {PAYMENT_METHOD_TYPES.map((paymentType) => {
+                  const IconComponent = getPaymentMethodIcon(paymentType.type);
+                  return (
+                    <Web3Button
+                      key={paymentType.type}
+                      onClick={() => {
+                        setSelectedType(paymentType.type);
+                        setShowAddForm(true);
+                      }}
+                      className="flex flex-col items-center gap-3 p-6 h-auto"
+                      variant="secondary"
+                    >
+                      <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                        <IconComponent className="w-6 h-6 text-blue-400" />
+                      </div>
+                      <div className="text-center">
+                        <p className="font-medium">{paymentType.name}</p>
+                        <p className="text-sm opacity-70">{paymentType.description}</p>
+                      </div>
+                    </Web3Button>
+                  );
+                })}
+              </div>
+            </Web3Card>
+
+            {/* Existing Payment Methods */}
+            {paymentMethods.length > 0 ? (
+              <Web3Card>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-lg font-semibold text-white">Your Payment Methods</h2>
+                  <Badge className="bg-blue-400/20 text-blue-400 border-blue-400/30">
+                    {paymentMethods.length} method{paymentMethods.length !== 1 ? 's' : ''}
+                  </Badge>
                 </div>
-              </Card>
-            );
-          })}
-        </div>
 
-        {/* Existing Payment Methods */}
-        {paymentMethods.length > 0 && (
-          <div>
-            <h2 className="font-semibold text-gray-900 mb-3">Your Payment Methods</h2>
-            <div className="space-y-3">
-              {paymentMethods.map((method) => {
-                const IconComponent = getPaymentMethodIcon(method.type);
-                const typeInfo = getPaymentMethodTypeInfo(method.type);
-                
-                return (
-                  <Card key={method.id} className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3 flex-1">
-                        <div className={`w-12 h-12 rounded-full ${typeInfo?.color || 'bg-gray-100'} flex items-center justify-center`}>
-                          <IconComponent className="w-6 h-6" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium text-gray-900 truncate">{method.name}</p>
-                            {method.is_verified && (
-                              <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
-                                <Shield className="w-3 h-3 mr-1" />
-                                Verified
-                              </Badge>
-                            )}
+                <div className="space-y-4">
+                  {paymentMethods.map((method) => {
+                    const IconComponent = getPaymentMethodIcon(method.type);
+                    
+                    return (
+                      <div 
+                        key={method.id}
+                        className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all duration-300"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center">
+                            <IconComponent className="w-6 h-6 text-blue-400" />
                           </div>
-                          <p className="text-sm text-gray-600 truncate">
-                            {formatPaymentMethodDetails(method)}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            Added {new Date(method.created_at).toLocaleDateString()}
-                          </p>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-semibold text-white">{method.name}</p>
+                              {method.is_verified && (
+                                <Badge className="bg-green-400/20 text-green-400 border-green-400/30">
+                                  <Shield className="w-3 h-3 mr-1" />
+                                  Verified
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-sm text-indigo-200/70">
+                              {formatPaymentMethodDetails(method)}
+                            </p>
+                            <p className="text-xs text-indigo-200/50">
+                              Added {new Date(method.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Web3Button
+                            variant="ghost"
+                            className="p-2"
+                            icon
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Web3Button>
+                          <Web3Button
+                            variant="ghost"
+                            onClick={() => deletePaymentMethod(method.id)}
+                            className="p-2 text-red-400 hover:bg-red-500/20"
+                            icon
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Web3Button>
                         </div>
                       </div>
-                      
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="p-2"
-                          onClick={() => handleDeletePaymentMethod(method.id)}
-                        >
-                          <Trash2 className="w-4 h-4 text-red-600" />
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
-          </div>
-        )}
+                    );
+                  })}
+                </div>
+              </Web3Card>
+            ) : (
+              <Web3Card className="text-center py-12">
+                <CreditCard className="w-16 h-16 text-indigo-200/50 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-white mb-2">No Payment Methods</h3>
+                <p className="text-indigo-200/70 mb-6">
+                  Add a payment method to start buying and selling cryptocurrency
+                </p>
+                <Web3Button onClick={() => setShowAddForm(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Your First Payment Method
+                </Web3Button>
+              </Web3Card>
+            )}
 
-        {/* Empty State */}
-        {paymentMethods.length === 0 && (
-          <Card className="p-8 text-center">
-            <CreditCard className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No Payment Methods</h3>
-            <p className="text-gray-600 mb-6">
-              Add your first payment method to start buying and selling crypto with ease.
-            </p>
-            <div className="text-sm text-gray-500">
-              <p>✓ Bank accounts</p>
-              <p>✓ Mobile money</p>
-              <p>✓ Debit/Credit cards</p>
-            </div>
-          </Card>
+            {/* Info Section */}
+            <Web3Card className="mt-6 bg-blue-500/20 border-blue-400/30">
+              <div className="flex items-start gap-3">
+                <Shield className="w-5 h-5 text-blue-300 mt-0.5" />
+                <div>
+                  <h3 className="font-semibold text-blue-300 mb-2">Security & Privacy</h3>
+                  <ul className="text-sm text-blue-200 space-y-1">
+                    <li>• All payment information is encrypted and secure</li>
+                    <li>• We partner with trusted payment providers</li>
+                    <li>• Your financial data is never shared with third parties</li>
+                    <li>• Verified methods have enhanced security features</li>
+                  </ul>
+                </div>
+              </div>
+            </Web3Card>
+          </>
         )}
-
-        {/* Security Notice */}
-        <Card className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-          <div className="flex items-start gap-3">
-            <Shield className="w-5 h-5 text-blue-600 mt-0.5" />
-            <div>
-              <p className="font-medium text-blue-900 mb-1">Secure & Encrypted</p>
-              <p className="text-sm text-blue-700">
-                All payment methods are secured with bank-level encryption and never stored in plain text.
-              </p>
-            </div>
-          </div>
-        </Card>
       </div>
-    </div>
+    </Web3Container>
   );
 };
