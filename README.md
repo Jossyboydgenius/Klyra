@@ -242,4 +242,3 @@ For support and questions:
 - [ ] Better error handling
 - [ ] Comprehensive testing suite
 - [ ] CI/CD pipeline
-<img width="12944" height="6624" alt="paylux" src="https://github.com/user-attachments/assets/39a85274-a2e4-4be4-8588-dd0d730c0100" />
