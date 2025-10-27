@@ -2,6 +2,9 @@
 
 import { useState } from 'react';
 import { Web3Container, Web3Card, Web3Button } from './Web3Theme';
+import { NetworkSelector } from './NetworkSelector';
+import { TokenSelector } from './TokenSelector';
+import type { Chain, Token } from '@/lib/chain-data';
 
 interface Country {
   code: string;
@@ -10,49 +13,37 @@ interface Country {
   flag: string;
 }
 
-interface CryptoAsset {
-  symbol: string;
-  name: string;
-  networks: string[];
-}
-
-interface Network {
-  id: string;
-  name: string;
-  description: string;
-}
-
 const COUNTRIES: Country[] = [
   { code: 'NG', name: 'Nigeria', currency: 'NGN', flag: '🇳🇬' },
   { code: 'GH', name: 'Ghana', currency: 'GHS', flag: '🇬🇭' },
   { code: 'KE', name: 'Kenya', currency: 'KES', flag: '🇰🇪' }
 ];
 
-const CRYPTO_ASSETS: CryptoAsset[] = [
-  { symbol: 'USDC', name: 'USD Coin', networks: ['ethereum', 'base', 'polygon'] },
-  { symbol: 'USDT', name: 'Tether', networks: ['ethereum', 'polygon'] },
-  { symbol: 'ETH', name: 'Ethereum', networks: ['ethereum', 'base'] }
-];
-
-const NETWORKS: Network[] = [
-  { id: 'ethereum', name: 'Ethereum', description: 'Ethereum Mainnet' },
-  { id: 'base', name: 'Base', description: 'Base Network' },
-  { id: 'polygon', name: 'Polygon', description: 'Polygon Network' }
-];
-
 export default function BuyCrypto() {
   const [selectedCountry, setSelectedCountry] = useState('');
-  const [selectedAsset, setSelectedAsset] = useState('');
-  const [selectedNetwork, setSelectedNetwork] = useState('');
+  const [selectedChainId, setSelectedChainId] = useState<number | null>(null);
+  const [selectedChain, setSelectedChain] = useState<Chain | null>(null);
+  const [selectedToken, setSelectedToken] = useState<Token | null>(null);
   const [amount, setAmount] = useState('');
   const [walletAddress, setWalletAddress] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const handleNetworkChange = (chainId: number, chain: Chain) => {
+    setSelectedChainId(chainId);
+    setSelectedChain(chain);
+    // Reset token when network changes
+    setSelectedToken(null);
+  };
+
+  const handleTokenChange = (token: Token) => {
+    setSelectedToken(token);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!selectedCountry || !selectedAsset || !selectedNetwork || !amount || !walletAddress) {
+    if (!selectedCountry || !selectedChainId || !selectedToken || !amount || !walletAddress) {
       setError('Please fill in all fields');
       return;
     }
@@ -68,8 +59,10 @@ export default function BuyCrypto() {
         },
         body: JSON.stringify({
           country: selectedCountry,
-          crypto_asset: selectedAsset,
-          network: selectedNetwork,
+          crypto_asset: selectedToken.symbol,
+          network: selectedChain?.name || `Chain ${selectedChainId}`,
+          chain_id: selectedChainId,
+          token_address: selectedToken.address,
           crypto_amount: amount,
           user_wallet_address: walletAddress,
         }),
@@ -89,10 +82,6 @@ export default function BuyCrypto() {
       setLoading(false);
     }
   };
-
-  const availableNetworks = selectedAsset ? 
-    NETWORKS.filter(n => CRYPTO_ASSETS.find(a => a.symbol === selectedAsset)?.networks.includes(n.id)) : 
-    [];
 
   return (
     <Web3Container>
@@ -131,55 +120,44 @@ export default function BuyCrypto() {
             </select>
           </div>
 
-          {/* Crypto Asset Selection */}
+          {/* Network Selection */}
           <div>
             <label className="block text-sm font-medium text-white mb-2">
-              Cryptocurrency
+              Network / Blockchain
             </label>
-            <select
-              value={selectedAsset}
-              onChange={(e) => {
-                setSelectedAsset(e.target.value);
-                setSelectedNetwork(''); // Reset network when asset changes
-              }}
-              className="w-full p-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-indigo-200/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm"
-              required
-            >
-              <option value="" className="bg-slate-800 text-white">Select cryptocurrency</option>
-              {CRYPTO_ASSETS.map((asset) => (
-              <option key={asset.symbol} value={asset.symbol} className="bg-slate-800 text-white">
-                {asset.symbol} - {asset.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Network Selection */}
-        {selectedAsset && (
-          <div>
-            <label className="block text-sm font-medium text-white mb-2">
-              Network
-            </label>
-            <select
-              value={selectedNetwork}
-              onChange={(e) => setSelectedNetwork(e.target.value)}
-              className="w-full p-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-indigo-200/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm"
-              required
-            >
-              <option value="" className="bg-slate-800 text-white">Select network</option>
-              {availableNetworks.map((network) => (
-                <option key={network.id} value={network.id} className="bg-slate-800 text-white">
-                  {network.name} - {network.description}
-                </option>
-              ))}
-            </select>
+            <NetworkSelector
+              value={selectedChainId}
+              onChange={handleNetworkChange}
+              includeTestnets={true}
+              placeholder="Select blockchain network"
+              className="bg-white/5 border-white/20 text-white hover:bg-white/10"
+            />
+            <p className="text-xs text-indigo-200/70 mt-1">
+              Choose the blockchain network you want to use
+            </p>
           </div>
-        )}
+
+          {/* Token Selection */}
+          <div>
+            <label className="block text-sm font-medium text-white mb-2">
+              Token / Cryptocurrency
+            </label>
+            <TokenSelector
+              chainId={selectedChainId}
+              value={selectedToken?.address}
+              onChange={handleTokenChange}
+              placeholder="Select token"
+              className="bg-white/5 border-white/20 text-white hover:bg-white/10"
+            />
+            <p className="text-xs text-indigo-200/70 mt-1">
+              {selectedChainId ? 'Choose the token to buy' : 'Select a network first'}
+            </p>
+          </div>
 
         {/* Amount Input */}
         <div>
           <label className="block text-sm font-medium text-white mb-2">
-            Amount ({selectedAsset || 'Crypto'})
+            Amount {selectedToken && `(${selectedToken.symbol})`}
           </label>
           <input
             type="number"
@@ -190,7 +168,13 @@ export default function BuyCrypto() {
             min="0.01"
             step="0.01"
             required
+            disabled={!selectedToken}
           />
+          <p className="text-sm text-indigo-200/70 mt-1">
+            {selectedToken 
+              ? `How much ${selectedToken.symbol} do you want to buy?` 
+              : 'Select a token first'}
+          </p>
         </div>
 
         {/* Wallet Address Input */}
@@ -207,17 +191,21 @@ export default function BuyCrypto() {
             required
           />
           <p className="text-sm text-indigo-200/70 mt-1">
-            Enter the wallet address where you want to receive your {selectedAsset || 'crypto'}
+            Enter the wallet address where you want to receive your {selectedToken?.symbol || 'crypto'}
           </p>
         </div>
 
         {/* Submit Button */}
         <Web3Button
           type="submit"
-          disabled={loading}
+          disabled={loading || !selectedChainId || !selectedToken}
           className="w-full"
         >
-          {loading ? 'Processing...' : `Buy ${selectedAsset || 'Crypto'}`}
+          {loading 
+            ? 'Processing...' 
+            : selectedToken 
+            ? `Buy ${selectedToken.symbol}` 
+            : 'Select Token to Continue'}
         </Web3Button>
       </form>
       </Web3Card>
@@ -226,12 +214,40 @@ export default function BuyCrypto() {
       <Web3Card className="mt-8 bg-blue-500/20 border-blue-400/30">
         <h3 className="font-semibold text-blue-300 mb-2">How it works:</h3>
         <ol className="text-sm text-blue-200 space-y-1">
-          <li>1. Select your country, cryptocurrency, and network</li>
-          <li>2. Enter the amount and your wallet address</li>
-          <li>3. Complete payment using mobile money or bank transfer</li>
-          <li>4. Receive crypto directly in your wallet</li>
+          <li>1. Select your country and payment method</li>
+          <li>2. Choose blockchain network and token</li>
+          <li>3. Enter the amount and your wallet address</li>
+          <li>4. Complete payment using mobile money or bank transfer</li>
+          <li>5. Receive crypto directly in your wallet</li>
         </ol>
       </Web3Card>
+
+      {/* Selected Summary */}
+      {(selectedChain || selectedToken) && (
+        <Web3Card className="mt-4 bg-purple-500/10 border-purple-400/20">
+          <h3 className="font-semibold text-purple-300 mb-2">Selection Summary:</h3>
+          <div className="text-sm text-purple-200 space-y-1">
+            {selectedChain && (
+              <div>
+                <span className="text-purple-300">Network:</span> {selectedChain.name} 
+                {selectedChain.testnet && <span className="text-xs ml-2 text-orange-300">(Testnet)</span>}
+              </div>
+            )}
+            {selectedToken && (
+              <>
+                <div>
+                  <span className="text-purple-300">Token:</span> {selectedToken.name} ({selectedToken.symbol})
+                </div>
+                <div className="text-xs font-mono text-purple-300/70">
+                  {selectedToken.address !== '0x0000000000000000000000000000000000000000' && 
+                    `Contract: ${selectedToken.address.slice(0, 10)}...${selectedToken.address.slice(-8)}`
+                  }
+                </div>
+              </>
+            )}
+          </div>
+        </Web3Card>
+      )}
     </Web3Container>
   );
 }
