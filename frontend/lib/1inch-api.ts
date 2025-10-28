@@ -1,8 +1,12 @@
 // 1inch API Client and Types
 // API Documentation: https://portal.1inch.dev/documentation/apis/swap/introduction
+// Using Next.js API proxy to avoid CORS issues
 
-const ONEINCH_API_KEY = process.env.NEXT_PUBLIC_ONEINCH_API_KEY || '4EAD4NDFu9VP2WLW9hl27D8b1yAHhCpF';
-const ONEINCH_BASE_URL = 'https://api.1inch.com';
+const USE_PROXY = true; // Set to false for production if you have CORS configured
+const PROXY_BASE_URL = '/api/1inch';
+const DIRECT_BASE_URL = 'https://api.1inch.com';
+const ONEINCH_API_KEY = process.env.NEXT_PUBLIC_ONEINCH_API_KEY || '';
+const ONEINCH_BASE_URL = USE_PROXY ? PROXY_BASE_URL : DIRECT_BASE_URL;
 
 // Types
 export interface Token1inch {
@@ -113,7 +117,12 @@ export class OneInchAPI {
   }
 
   private async request<T>(endpoint: string, params?: Record<string, any>): Promise<T> {
-    const url = new URL(`${this.baseURL}${endpoint}`);
+    const isProxy = this.baseURL.startsWith('/api');
+    const url = new URL(
+      isProxy 
+        ? `${window.location.origin}${this.baseURL}${endpoint}`
+        : `${this.baseURL}${endpoint}`
+    );
     
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
@@ -123,11 +132,17 @@ export class OneInchAPI {
       });
     }
 
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    // Only add Authorization header for direct API calls (not proxy)
+    if (!isProxy) {
+      headers['Authorization'] = `Bearer ${this.apiKey}`;
+    }
+
     const response = await fetch(url.toString(), {
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-      },
+      headers,
     });
 
     if (!response.ok) {
@@ -152,9 +167,12 @@ export class OneInchAPI {
     includeGas?: boolean;
   }): Promise<QuoteResponse> {
     const { chainId, ...queryParams } = params;
+    const isProxy = this.baseURL.startsWith('/api');
+    
     return this.request<QuoteResponse>(
-      `/swap/v6.1/${chainId}/quote`,
+      isProxy ? '/swap/quote' : `/swap/v6.1/${chainId}/quote`,
       {
+        ...(isProxy && { chainId }), // Add chainId as query param for proxy
         ...queryParams,
         includeTokensInfo: true,
         includeProtocols: true,
@@ -182,9 +200,12 @@ export class OneInchAPI {
     allowPartialFill?: boolean;
   }): Promise<SwapResponse> {
     const { chainId, ...queryParams } = params;
+    const isProxy = this.baseURL.startsWith('/api');
+    
     return this.request<SwapResponse>(
-      `/swap/v6.1/${chainId}/swap`,
+      isProxy ? '/swap/transaction' : `/swap/v6.1/${chainId}/swap`,
       {
+        ...(isProxy && { chainId }), // Add chainId as query param for proxy
         ...queryParams,
         includeTokensInfo: true,
         includeProtocols: true,
@@ -205,8 +226,10 @@ export class OneInchAPI {
     fee?: number;
     source?: string;
   }): Promise<FusionQuoteResponse> {
+    const isProxy = this.baseURL.startsWith('/api');
+    
     return this.request<FusionQuoteResponse>(
-      '/fusion-plus/quoter/v1.1/quote/receive',
+      isProxy ? '/fusion-quote' : '/fusion-plus/quoter/v1.1/quote/receive',
       {
         ...params,
         enableEstimate: params.enableEstimate ?? false,
@@ -222,20 +245,35 @@ export class OneInchAPI {
     amount?: string;
   }): Promise<ApproveCallData> {
     const { chainId, ...queryParams } = params;
+    const isProxy = this.baseURL.startsWith('/api');
+    
     return this.request<ApproveCallData>(
-      `/swap/v6.1/${chainId}/approve/transaction`,
-      queryParams
+      isProxy ? '/approve' : `/swap/v6.1/${chainId}/approve/transaction`,
+      {
+        ...(isProxy && { chainId }), // Add chainId as query param for proxy
+        ...queryParams,
+      }
     );
   }
 
   // Get available tokens for a chain
   async getTokens(chainId: number): Promise<{ tokens: Record<string, Token1inch> }> {
-    return this.request(`/swap/v6.1/${chainId}/tokens`);
+    const isProxy = this.baseURL.startsWith('/api');
+    
+    return this.request(
+      isProxy ? '/tokens' : `/swap/v6.1/${chainId}/tokens`,
+      isProxy ? { chainId } : undefined
+    );
   }
 
   // Get available liquidity sources
   async getLiquiditySources(chainId: number): Promise<{ protocols: LiquiditySource[] }> {
-    return this.request(`/swap/v6.1/${chainId}/liquidity-sources`);
+    const isProxy = this.baseURL.startsWith('/api');
+    
+    return this.request(
+      isProxy ? '/liquidity-sources' : `/swap/v6.1/${chainId}/liquidity-sources`,
+      isProxy ? { chainId } : undefined
+    );
   }
 }
 
