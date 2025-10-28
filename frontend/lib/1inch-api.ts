@@ -83,7 +83,7 @@ export interface FusionQuotePreset {
 }
 
 export interface FusionQuoteResponse {
-  quoteId: string;
+  quoteId: string | null; // null when enableEstimate is false, string when true
   srcTokenAmount: string;
   dstTokenAmount: string;
   presets: {
@@ -104,6 +104,10 @@ export interface FusionQuoteResponse {
       dstToken: string;
     };
   };
+  priceImpactPercent?: number; // Price impact percentage
+  autoK?: number;
+  k?: number;
+  mxK?: number;
 }
 
 // API Client
@@ -225,15 +229,27 @@ export class OneInchAPI {
     enableEstimate?: boolean;
     fee?: number;
     source?: string;
+    slippage?: number;
+    isPermit2?: string;
+    permit?: string;
   }): Promise<FusionQuoteResponse> {
     const isProxy = this.baseURL.startsWith('/api');
     
     return this.request<FusionQuoteResponse>(
       isProxy ? '/fusion-quote' : '/fusion-plus/quoter/v1.1/quote/receive',
       {
-        ...params,
-        enableEstimate: params.enableEstimate ?? false,
-        source: params.source ?? '1', // Default source to '1'
+        srcChain: params.srcChain,
+        dstChain: params.dstChain,
+        srcTokenAddress: params.srcTokenAddress,
+        dstTokenAddress: params.dstTokenAddress,
+        amount: params.amount,
+        walletAddress: params.walletAddress,
+        enableEstimate: params.enableEstimate ?? true, // Default to true to get quoteId
+        fee: params.fee ?? 0,
+        source: params.source ?? 'fusion', // Default to 'fusion' as per docs
+        slippage: params.slippage ?? 0.5, // Default 0.5% slippage
+        ...(params.isPermit2 && { isPermit2: params.isPermit2 }),
+        ...(params.permit && { permit: params.permit }),
       }
     );
   }

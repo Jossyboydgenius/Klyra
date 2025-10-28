@@ -9,6 +9,7 @@ export interface SwapRoute {
   routerId: string;
   routerName: string;
   quote: QuoteResponse | FusionQuoteResponse;
+  quoteId?: string; // For Fusion+ cross-chain swaps (when enableEstimate: true)
   estimatedGas?: number;
   gasCost?: string;
   priceImpact?: number;

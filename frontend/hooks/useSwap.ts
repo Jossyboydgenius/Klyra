@@ -72,8 +72,10 @@ export function useSwap(userAddress?: string) {
           dstTokenAddress: state.dstToken.address,
           amount,
           walletAddress: state.userAddress || '0x0000000000000000000000000000000000000000',
-          enableEstimate: true,
-          source: '1', // Required source parameter
+          enableEstimate: true, // Set to true to get quoteId
+          source: 'fusion', // Use 'fusion' as source (options: 'fusion' or 'api')
+          slippage: state.slippage, // Pass user's slippage preference
+          fee: 0, // No additional fees
         });
 
         // Get the recommended preset, fallback to 'fast' if 'custom' is returned
@@ -85,6 +87,7 @@ export function useSwap(userAddress?: string) {
           routerId: '1inch-fusion',
           routerName: '1inch Fusion+',
           quote: fusionQuote,
+          quoteId: fusionQuote.quoteId || undefined, // Store quoteId for executing the swap
           estimatedGas: parseInt(recommendedPreset.gasCost.gasBumpEstimate.toString()),
           gasCost: formatGasCost(
             recommendedPreset.gasCost.gasBumpEstimate,
