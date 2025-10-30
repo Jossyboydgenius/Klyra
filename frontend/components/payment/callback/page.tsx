@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { TransactionStatus } from '@/components/TransactionStatus';
+// import { TransactionStatus } from '@/components/payment/TransactionStatus';
 
 export default function PaymentCallback() {
   const searchParams = useSearchParams();
@@ -103,7 +103,11 @@ export default function PaymentCallback() {
             <p className="text-gray-600">Your payment has been confirmed. We're now processing your crypto purchase.</p>
           </div>
           
-          {reference && <TransactionStatus reference={reference} />}
+          {reference && (
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+              <p className="text-sm text-gray-700"><span className="font-semibold">Reference:</span> {reference}</p>
+            </div>
+          )}
         </div>
 
         <div className="text-center">

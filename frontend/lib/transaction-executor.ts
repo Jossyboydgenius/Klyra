@@ -3,7 +3,7 @@
 import { writeContract, waitForTransactionReceipt, switchChain } from 'wagmi/actions';
 import type { UnifiedRoute, CrossChainTransaction, TransactionStep } from './payment-types';
 import { erc20Abi } from 'viem';
-import { squidAPI } from './aggregators/squid';
+import type { SquidAPI } from './aggregators/squid';
 
 export class TransactionExecutor {
   async execute(route: UnifiedRoute, userAddress: string, wagmiConfig: any): Promise<CrossChainTransaction> {
@@ -161,6 +161,8 @@ export class TransactionExecutor {
         return route.rawData.steps?.[0]?.estimate?.approvalAddress || '';
       case 'squid':
         return route.rawData.transactionRequest?.target || route.transactions?.[0]?.to || '';
+      case 'across':
+        return route.rawData.spender || route.transactions?.[0]?.to || '';
       case '1inch-fusion':
         return '0x111111125421ca6dc452d289314280a0f8842a65'; // 1inch Router v5
       default:
@@ -168,7 +170,13 @@ export class TransactionExecutor {
     }
   }
 
-  async getSquidTransactionStatus(txHash: string, requestId: string, fromChain: number, toChain: number): Promise<any> {
+  async getSquidTransactionStatus(
+    squidAPI: SquidAPI,
+    txHash: string,
+    requestId: string,
+    fromChain: number,
+    toChain: number
+  ): Promise<any> {
     try {
       const status = await squidAPI.getStatus({
         transactionId: txHash,

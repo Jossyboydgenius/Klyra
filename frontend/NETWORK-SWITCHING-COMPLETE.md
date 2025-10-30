@@ -156,6 +156,7 @@ To test the dynamic switching:
 - ✅ `lib/aggregators/across.ts` - **UPDATED** (bug fixes)
 - ✅ `lib/aggregators/index.ts` - **UPDATED**
 - ✅ `lib/route-aggregator.ts` - **UPDATED**
+- ✅ `lib/transaction-executor.ts` - **UPDATED**
 - ✅ `components/NetworkSelector.tsx` - **UPDATED**
 - ✅ `app/providers.tsx` - **UPDATED**
 - ✅ `app/payment/page.tsx` - **UPDATED**
@@ -175,6 +176,12 @@ To test the dynamic switching:
 
 3. **Missing exports** in `aggregators/index.ts`
    - Updated to export classes instead of static instances
+
+4. **Import error in `transaction-executor.ts`**
+   - Was importing static `squidAPI` instance that no longer exists
+   - Changed to type-only import: `import type { SquidAPI }`
+   - Updated `getSquidTransactionStatus()` to accept `squidAPI` as a parameter
+   - Added `across` case to `getSpenderAddress()` method
 
 ## Next Steps
 
