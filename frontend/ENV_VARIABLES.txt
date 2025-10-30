@@ -1,0 +1,34 @@
+# Add these to your .env.local file:
+
+# Coinbase OnchainKit
+NEXT_PUBLIC_ONCHAINKIT_API_KEY=
+
+# 1inch API (already have)
+NEXT_PUBLIC_ONEINCH_API_KEY=
+
+# Socket API - Get from https://socket.tech/dashboard
+NEXT_PUBLIC_SOCKET_API_KEY=
+
+# Squid Router Integrator ID - Get from https://v2.app.squidrouter.com/
+NEXT_PUBLIC_SQUID_INTEGRATOR_ID=
+
+# LI.FI - API key is OPTIONAL (only for higher rate limits)
+# Public API works without key, but add this for higher rate limits:
+NEXT_PUBLIC_LIFI_API_KEY=
+
+# LI.FI Integrator Name - Your company/app name for tracking (string, not an API key)
+# Example: "klyra" or "my-company-name"
+NEXT_PUBLIC_LIFI_INTEGRATOR_KEY_STRING=klyra
+
+# Across Protocol - Get Integrator ID from:
+# https://docs.google.com/forms/d/e/1FAIpQLSe-HY6mzTeGZs91HxObkQmwkMQuH7oy8ngZ1ROiu-f4SR4oMw/viewform
+# Integrator ID is a 2-byte hex string (e.g., "0xdead")
+# Note: Mainnet/Testnet is auto-detected from the network selector
+NEXT_PUBLIC_ACROSS_INTEGRATOR_ID=
+
+# Supabase (if not already set)
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+
+NEXT_PUBLIC_URL=http://localhost:3000
+

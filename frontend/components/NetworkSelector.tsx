@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useNetwork } from '@/contexts/NetworkContext';
 
 interface NetworkSelectorProps {
   value?: number | null; // Chain ID
@@ -115,8 +116,11 @@ export function NetworkSelector({
     return value ? allChains.find(chain => chain.id === value) : null;
   }, [value, allChains]);
 
+  const { setSelectedChain } = useNetwork();
+
   const handleSelect = (chain: Chain) => {
     onChange(chain.id, chain);
+    setSelectedChain(chain); // Update global network context
     setOpen(false);
     setSearchQuery('');
   };

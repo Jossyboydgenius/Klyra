@@ -6,6 +6,7 @@ import { base, mainnet, sepolia, baseSepolia, polygon, arbitrum, optimism } from
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MiniKitProvider } from "@coinbase/onchainkit/minikit";
 import { coinbaseWallet } from "wagmi/connectors";
+import { NetworkProvider } from "@/contexts/NetworkContext";
 
 // Create wagmi config with Coinbase Wallet connector
 const wagmiConfig = createConfig({
@@ -42,20 +43,22 @@ export function Providers(props: { children: ReactNode }) {
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <MiniKitProvider
-          apiKey={process.env.NEXT_PUBLIC_ONCHAINKIT_API_KEY}
-          chain={base}
-          config={{
-            appearance: {
-              mode: "auto",
-              theme: "mini-app-theme",
-              name: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME,
-              logo: process.env.NEXT_PUBLIC_ICON_URL,
-            },
-          }}
-        >
-          {props.children}
-        </MiniKitProvider>
+        <NetworkProvider>
+          <MiniKitProvider
+            apiKey={process.env.NEXT_PUBLIC_ONCHAINKIT_API_KEY}
+            chain={base}
+            config={{
+              appearance: {
+                mode: "auto",
+                theme: "mini-app-theme",
+                name: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME,
+                logo: process.env.NEXT_PUBLIC_ICON_URL,
+              },
+            }}
+          >
+            {props.children}
+          </MiniKitProvider>
+        </NetworkProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );
