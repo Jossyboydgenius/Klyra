@@ -300,7 +300,7 @@ export class AcrossAPI {
     // Warn if integrator ID is missing
     if (!this.integratorId) {
       console.warn(
-        '⚠️ Across Protocol: Integrator ID is missing!\n' +
+        ' Across Protocol: Integrator ID is missing!\n' +
         'Fill this form to get your Integrator ID: https://docs.google.com/forms/d/e/1FAIpQLSe-HY6mzTeGZs91HxObkQmwkMQuH7oy8ngZ1ROiu-f4SR4oMw/viewform\n' +
         'Add NEXT_PUBLIC_ACROSS_INTEGRATOR_ID to your .env.local file (e.g., "0xdead")'
       );

@@ -17,7 +17,7 @@ const appId = process.env.NEXT_PUBLIC_APP_ID;
 
 // Check if environment variables are configured
 if (!projectId || !clientKey || !appId) {
-  console.warn('⚠️ Particle Network environment variables not configured!');
+  console.warn(' Particle Network environment variables not configured!');
   console.warn('Please create a .env.local file with:');
   console.warn('NEXT_PUBLIC_PROJECT_ID=your_project_id');
   console.warn('NEXT_PUBLIC_CLIENT_KEY=your_client_key');

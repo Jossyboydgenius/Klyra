@@ -87,7 +87,7 @@ export class SquidAPI {
     // Warn if integrator ID is missing
     if (!this.integratorId) {
       console.warn(
-        '⚠️ Squid Integrator ID is missing! Add NEXT_PUBLIC_SQUID_INTEGRATOR_ID to your .env.local file.\n' +
+        ' Squid Integrator ID is missing! Add NEXT_PUBLIC_SQUID_INTEGRATOR_ID to your .env.local file.\n' +
         'Get your Integrator ID from: https://v2.app.squidrouter.com/'
       );
     }

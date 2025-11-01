@@ -31,17 +31,17 @@ Four different usage examples:
 
 ## Features Demonstrated
 
-✅ **Network Selection** with mainnet/testnet toggle  
-✅ **Token Selection** based on selected network  
-✅ **Smart Search** for both networks and tokens  
-✅ **Filtering** by chain IDs and token symbols  
-✅ **Visual Indicators** for network types  
-✅ **Token Metadata** display  
-✅ **Contract Address** copying  
-✅ **Block Explorer** links  
-✅ **Form Validation**  
-✅ **Transaction Preview**  
-✅ **Custom Styling** examples  
+**Network Selection** with mainnet/testnet toggle  
+**Token Selection** based on selected network  
+**Smart Search** for both networks and tokens  
+**Filtering** by chain IDs and token symbols  
+**Visual Indicators** for network types  
+**Token Metadata** display  
+**Contract Address** copying  
+**Block Explorer** links  
+**Form Validation**  
+**Transaction Preview**  
+**Custom Styling** examples  
 
 ## Use Cases
 

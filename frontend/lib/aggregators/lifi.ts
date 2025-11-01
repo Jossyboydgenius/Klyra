@@ -84,7 +84,7 @@ export class LiFiAPI {
     // Info message about optional API key (only show once)
     if (!this.apiKey && typeof window !== 'undefined') {
       console.info(
-        'ℹ️ LI.FI: Running without API key (public rate limits apply).\n' +
+        'LI.FI: Running without API key (public rate limits apply).\n' +
         'For higher rate limits, add NEXT_PUBLIC_LIFI_API_KEY to .env.local\n' +
         'Get your key from: https://li.fi/ (Optional!)'
       );

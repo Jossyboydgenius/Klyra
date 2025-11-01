@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { InfoIcon } from 'lucide-react';
 
 export default function SuccessPage() {
   const searchParams = useSearchParams();
@@ -109,19 +110,19 @@ export default function SuccessPage() {
           {orderDetails?.status === 'success' ? (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
               <p className="text-green-800 text-sm">
-                ✅ Your cryptocurrency has been sent to your wallet. The transaction may take a few minutes to appear on the blockchain.
+                Your cryptocurrency has been sent to your wallet. The transaction may take a few minutes to appear on the blockchain.
               </p>
             </div>
           ) : orderDetails?.status === 'fail' ? (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
               <p className="text-red-800 text-sm">
-                ❌ The transaction failed. Please contact support if you believe this is an error.
+                 The transaction failed. Please contact support if you believe this is an error.
               </p>
             </div>
           ) : (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <p className="text-blue-800 text-sm">
-                ℹ️ Your order is being processed. You will receive a notification once the transaction is complete.
+                <InfoIcon className="w-4 h-4 mr-2" /> Your order is being processed. You will receive a notification once the transaction is complete.
               </p>
             </div>
           )}

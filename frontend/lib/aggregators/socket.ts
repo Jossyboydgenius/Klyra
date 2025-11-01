@@ -63,7 +63,7 @@ export class SocketAPI {
     // Warn if API key is missing
     if (!this.apiKey) {
       console.warn(
-        '⚠️ Socket API Key is missing! Add NEXT_PUBLIC_SOCKET_API_KEY to your .env.local file.\n' +
+        ' Socket API Key is missing! Add NEXT_PUBLIC_SOCKET_API_KEY to your .env.local file.\n' +
         'Get your API Key from: https://socket.tech/dashboard'
       );
     }
