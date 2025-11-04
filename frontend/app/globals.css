@@ -1,25 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* Mobile-first responsive typography */
-html {
-  font-size: 16px;
-}
-
-body {
-  font-family: var(--font-outfit), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  font-optical-sizing: auto;
-  font-weight: 400;
-  font-style: normal;
-  line-height: 1.6;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
-  background: #1e1b4b; /* Dark background to prevent white space */
-  margin: 0;
-  padding: 0;
-}
+@import "tailwindcss";
 
 /* Mobile viewport optimization */
 .mobile-container {
@@ -29,31 +8,12 @@ body {
   position: relative;
   overflow-x: hidden;
   overflow-y: auto;
-  background: linear-gradient(to bottom right, #1e1b4b, #581c87, #1e1b4b); /* Match onboarding gradient */
-}
-
-/* Prevent body scroll and ensure full height */
-html, body {
-  height: 100%;
-  height: 100dvh;
-  margin: 0;
-  padding: 0;
-}
-
-/* Allow scrolling when needed */
-body {
-  overflow-y: auto;
-  overflow-x: hidden;
-  background: linear-gradient(to bottom right, #1e1b4b, #581c87, #1e1b4b); /* Dark gradient background */
-  min-height: 100vh;
-  min-height: 100dvh;
-}
-
-/* Remove default margins and padding */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+  background: linear-gradient(
+    to bottom right,
+    #1e1b4b,
+    #581c87,
+    #1e1b4b
+  ); /* Match onboarding gradient */
 }
 
 /* Modern gradients for Web3 feel */
@@ -130,15 +90,9 @@ select {
   min-width: 44px;
 }
 
-/* Smooth scrolling */
-html {
-  scroll-behavior: smooth;
-}
-
 /* Optimize scrolling performance */
 * {
   -webkit-overflow-scrolling: touch;
-  scroll-behavior: smooth;
 }
 
 /* Smooth animations optimized for mobile */
@@ -169,11 +123,11 @@ html {
   .mobile-text-sm {
     font-size: 0.875rem;
   }
-  
+
   .mobile-text-base {
     font-size: 1rem;
   }
-  
+
   .mobile-text-lg {
     font-size: 1.125rem;
   }
@@ -214,9 +168,48 @@ html {
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-
-
 @layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    font-size: 16px;
+    scroll-behavior: smooth;
+  }
+
+  html,
+  body {
+    height: 100%;
+    height: 100dvh;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family:
+      var(--font-outfit),
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      Roboto,
+      "Helvetica Neue",
+      Arial,
+      sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 400;
+    font-style: normal;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+    overflow-y: auto;
+    background: linear-gradient(to bottom right, #1e1b4b, #581c87, #1e1b4b);
+    min-height: 100vh;
+    min-height: 100dvh;
+    @apply bg-background text-foreground;
+  }
+
   :root {
     --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
@@ -272,13 +265,29 @@ html {
   }
 }
 
-
-
-@layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
+@theme {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-chart-1: hsl(var(--chart-1));
+  --color-chart-2: hsl(var(--chart-2));
+  --color-chart-3: hsl(var(--chart-3));
+  --color-chart-4: hsl(var(--chart-4));
+  --color-chart-5: hsl(var(--chart-5));
 }
