@@ -15,17 +15,20 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Send, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
+import { Send, ArrowRight, Loader2, AlertCircle, ArrowLeft } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useRouteAggregator } from '@/hooks/useRouteAggregator';
 import { transactionExecutor } from '@/lib/transaction-executor';
 import type { Chain, Token } from '@/lib/chain-data';
 import type { PaymentIntent, UnifiedRoute, CrossChainTransaction } from '@/lib/payment-types';
 import { useConfig } from 'wagmi';
+import { getErrorMessage } from '@/lib/error-utils';
 
 export default function PaymentPage() {
   const { address, isConnected } = useAccount();
   const wagmiConfig = useConfig();
   const routeAggregator = useRouteAggregator();
+  const router = useRouter();
 
   // Sender state
   const [srcChain, setSrcChain] = useState<number | null>(null);
@@ -94,11 +97,20 @@ export default function PaymentPage() {
     setError(null);
 
     try {
-      const tx = await transactionExecutor.execute(selectedRoute, address, wagmiConfig);
+      const tx = await transactionExecutor.execute(
+        selectedRoute, 
+        address, 
+        wagmiConfig,
+        recipientAddress || undefined
+      );
       setTransaction(tx);
     } catch (err: any) {
-      setError(err.message || 'Transaction failed');
-      console.error('Transaction error:', err);
+      const friendlyMessage = getErrorMessage(err);
+      setError(friendlyMessage);
+      // Only log full error details if it's not a user rejection
+      if (!friendlyMessage.includes('cancelled')) {
+        console.error('Transaction error:', err);
+      }
     } finally {
       setIsExecuting(false);
     }
@@ -106,28 +118,32 @@ export default function PaymentPage() {
 
   if (!isConnected) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
-        <div className="container mx-auto px-4 py-8 max-w-2xl">
-          <Card className="shadow-xl">
-            <CardHeader>
-              <CardTitle className="text-center">Connect Wallet to Pay</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center gap-4 py-8">
-              <Send className="h-16 w-16 text-primary" />
-              <p className="text-center text-muted-foreground">
-                Connect your wallet to send payments with any token across any chain
-              </p>
+      <div className="min-h-screen bg-linear-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex items-center justify-center p-4">
+        <Card className="shadow-2xl max-w-md w-full animate-in fade-in zoom-in-95 duration-300">
+          <CardHeader className="text-center pb-4">
+            <div className="mx-auto mb-4 w-20 h-20 bg-linear-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+              <Send className="h-10 w-10 text-white" />
+            </div>
+            <CardTitle className="text-2xl font-bold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Connect Wallet to Pay
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center gap-6 pb-8">
+            <p className="text-center text-muted-foreground text-lg leading-relaxed">
+              Connect your wallet to send payments with any token across any chain
+            </p>
+            <div className="w-full">
               <WalletConnect autoShowModal={true} />
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   if (transaction) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+      <div className="min-h-screen bg-linear-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
         <div className="container mx-auto px-4 py-8 max-w-3xl">
           <TransactionStatus
             transaction={transaction}
@@ -144,22 +160,35 @@ export default function PaymentPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        {/* Header */}
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-              <Send className="h-10 w-10 text-primary" />
-              Cross-Chain Payment
-            </h1>
-            <p className="text-lg text-gray-600 dark:text-gray-400 mt-2">
-              Send any token, recipient receives any token on any chain
-            </p>
+    <div className="min-h-screen bg-linear-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+      {/* Header with Back Button */}
+      <header className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 shadow-sm">
+        <div className="container mx-auto px-4 py-4 max-w-7xl">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push('/')}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back
+            </Button>
+            <div className="flex-1">
+              <h1 className="text-xl font-semibold">Cross-Chain Payment</h1>
+              <p className="text-sm text-muted-foreground">Send crypto across any chain</p>
+            </div>
+            {address && (
+              <div className="text-right">
+                <p className="text-xs text-muted-foreground">Connected</p>
+                <p className="text-sm font-mono truncate max-w-[120px]">{address.slice(0, 6)}...{address.slice(-4)}</p>
+              </div>
+            )}
           </div>
-          <WalletConnect autoShowModal={false} />
         </div>
+      </header>
 
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* Payment Form */}
           <Card className="lg:col-span-3 shadow-xl">

@@ -28,7 +28,7 @@ export function useSwap(userAddress?: string) {
     approvalCalldata: null,
   });
 
-  const quoteIntervalRef = useRef<NodeJS.Timeout>();
+  const quoteIntervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   // Determine swap type
   const determineSwapType = useCallback(

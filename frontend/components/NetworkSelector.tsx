@@ -25,6 +25,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNetwork } from '@/contexts/NetworkContext';
+import { getChainLogo } from '@/lib/chain-logos';
 
 interface NetworkSelectorProps {
   value?: number | null; // Chain ID
@@ -34,6 +35,7 @@ interface NetworkSelectorProps {
   includeTestnets?: boolean;
   disabled?: boolean;
   filterChainIds?: number[]; // Optional: only show specific chains
+  customChains?: Chain[]; // Optional: provide custom chain list (e.g., from chainid.network)
 }
 
 export function NetworkSelector({
@@ -44,6 +46,7 @@ export function NetworkSelector({
   includeTestnets = true,
   disabled = false,
   filterChainIds,
+  customChains,
 }: NetworkSelectorProps) {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -51,7 +54,8 @@ export function NetworkSelector({
 
   // Get all chains and filter if needed (with deduplication)
   const allChains = useMemo(() => {
-    let chains = getAllChains();
+    // Use custom chains if provided, otherwise use default
+    let chains = customChains || getAllChains();
     if (filterChainIds && filterChainIds.length > 0) {
       chains = chains.filter(chain => filterChainIds.includes(chain.id));
     }
@@ -65,11 +69,12 @@ export function NetworkSelector({
     });
     
     return Array.from(uniqueChains.values());
-  }, [filterChainIds]);
+  }, [filterChainIds, customChains]);
 
   const mainnetChains = useMemo(() => {
-    const chains = getMainnetChains().filter(chain => 
-      !filterChainIds || filterChainIds.includes(chain.id)
+    // Filter from allChains (which already uses customChains if provided)
+    const chains = allChains.filter(chain => 
+      (!chain.testnet) && (!filterChainIds || filterChainIds.includes(chain.id))
     );
     
     // Deduplicate by chain ID
@@ -81,11 +86,12 @@ export function NetworkSelector({
     });
     
     return Array.from(uniqueChains.values());
-  }, [filterChainIds]);
+  }, [allChains, filterChainIds]);
 
   const testnetChains = useMemo(() => {
-    const chains = getTestnetChains().filter(chain => 
-      !filterChainIds || filterChainIds.includes(chain.id)
+    // Filter from allChains (which already uses customChains if provided)
+    const chains = allChains.filter(chain => 
+      (chain.testnet) && (!filterChainIds || filterChainIds.includes(chain.id))
     );
     
     // Deduplicate by chain ID
@@ -97,7 +103,7 @@ export function NetworkSelector({
     });
     
     return Array.from(uniqueChains.values());
-  }, [filterChainIds]);
+  }, [allChains, filterChainIds]);
 
   // Filter chains based on search and network type
   const filteredChains = useMemo(() => {
@@ -139,16 +145,32 @@ export function NetworkSelector({
             className
           )}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             {selectedChain ? (
               <>
-                <div className={cn(
-                  "w-2 h-2 rounded-full",
-                  selectedChain.testnet ? "bg-orange-500" : "bg-green-500"
-                )} />
+                {(() => {
+                  const chainLogo = getChainLogo(selectedChain.id);
+                  return chainLogo ? (
+                    <div className="relative shrink-0">
+                      <img
+                        src={chainLogo}
+                        alt={selectedChain.name}
+                        className="w-5 h-5 rounded-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className={cn(
+                      "w-2 h-2 rounded-full shrink-0",
+                      selectedChain.testnet ? "bg-orange-500" : "bg-green-500"
+                    )} />
+                  );
+                })()}
                 <span className="truncate">{selectedChain.name}</span>
                 {selectedChain.testnet && (
-                  <span className="text-xs text-muted-foreground">(Testnet)</span>
+                  <span className="text-xs text-muted-foreground shrink-0">(Testnet)</span>
                 )}
               </>
             ) : (
@@ -176,7 +198,7 @@ export function NetworkSelector({
               placeholder="Search networks..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-black disabled:cursor-not-allowed disabled:opacity-50"
             />
           </div>
           <div className="max-h-[300px] overflow-y-auto">
@@ -193,11 +215,27 @@ export function NetworkSelector({
                     onSelect={() => handleSelect(chain)}
                     className="cursor-pointer"
                   >
-                    <div className="flex items-center gap-2 flex-1">
-                      <div className={cn(
-                        "w-2 h-2 rounded-full flex-shrink-0",
-                        chain.testnet ? "bg-orange-500" : "bg-green-500"
-                      )} />
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      {(() => {
+                        const chainLogo = getChainLogo(chain.id);
+                        return chainLogo ? (
+                          <div className="relative shrink-0">
+                            <img
+                              src={chainLogo}
+                              alt={chain.name}
+                              className="w-6 h-6 rounded-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className={cn(
+                            "w-2 h-2 rounded-full shrink-0",
+                            chain.testnet ? "bg-orange-500" : "bg-green-500"
+                          )} />
+                        );
+                      })()}
                       <div className="flex flex-col flex-1 min-w-0">
                         <span className="font-medium truncate">{chain.name}</span>
                         <span className="text-xs text-muted-foreground truncate">
@@ -205,7 +243,7 @@ export function NetworkSelector({
                         </span>
                       </div>
                       {selectedChain?.id === chain.id && (
-                        <Check className="h-4 w-4 flex-shrink-0" />
+                        <Check className="h-4 w-4 shrink-0" />
                       )}
                     </div>
                   </CommandItem>

@@ -7,7 +7,7 @@ import { supabase } from '@/lib/database/supabase-client';
 import { poolExecutor } from './pool-executor';
 import { poolBalanceTracker } from './pool-balance-tracker';
 import { pricingEngine, PriceQuote } from './pricing-engine';
-import type { Token } from '@/lib/payment-types';
+import type { Token } from '@/lib/chain-data';
 import type { Address } from 'viem';
 
 export interface LiquidityOrder {
@@ -173,7 +173,7 @@ export class OrderQueue {
     // Check balance
     const balanceCheck = await poolBalanceTracker.checkBalance(
       order.requestedToken.chainId,
-      order.requestedToken.address,
+      order.requestedToken.address as Address,
       order.requestedAmount
     );
 

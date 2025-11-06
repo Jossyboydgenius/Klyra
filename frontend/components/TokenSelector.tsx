@@ -7,7 +7,9 @@ import {
   getCombinedTokensForChain,
   searchTokens,
   type Token,
+  getChainById,
 } from '@/lib/chain-data';
+import { useEnhancedTokens } from '@/hooks/useEnhancedTokens';
 import {
   Command,
   CommandEmpty,
@@ -45,10 +47,15 @@ export function TokenSelector({
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Get enhanced tokens (including Squid tokens for testnets)
+  const { tokens: enhancedTokens, isLoading: isLoadingSquid } = useEnhancedTokens(chainId);
+
   // Get all tokens for the selected chain
   const allTokens = useMemo(() => {
     if (!chainId) return [];
-    let tokens = getCombinedTokensForChain(chainId);
+    
+    // Use enhanced tokens if available (includes Squid tokens for testnets)
+    let tokens = enhancedTokens.length > 0 ? enhancedTokens : getCombinedTokensForChain(chainId);
     
     if (filterTokens && filterTokens.length > 0) {
       tokens = tokens.filter(token => 
@@ -58,7 +65,7 @@ export function TokenSelector({
     }
     
     return tokens;
-  }, [chainId, filterTokens]);
+  }, [chainId, filterTokens, enhancedTokens]);
 
   // Filter tokens based on search
   const filteredTokens = useMemo(() => {
@@ -89,6 +96,9 @@ export function TokenSelector({
   // Check if disabled due to no chain selected
   const isDisabled = disabled || !chainId;
 
+  // Check if using Web3 theme (dark theme with white text)
+  const isWeb3Theme = className?.includes('bg-white/5') || className?.includes('text-white');
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -98,121 +108,222 @@ export function TokenSelector({
           aria-expanded={open}
           disabled={isDisabled}
           className={cn(
-            'w-full justify-between',
+            'w-full justify-between p-4 border-2 rounded-xl transition-all duration-200',
             !selectedToken && 'text-muted-foreground',
+            open && isWeb3Theme && 'border-blue-500/50 bg-white/10 shadow-lg shadow-blue-500/20',
+            !open && isWeb3Theme && 'border-white/20 hover:border-white/30 hover:bg-white/10',
+            !isWeb3Theme && 'hover:bg-accent',
             className
           )}
         >
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
             {selectedToken ? (
               <>
                 {selectedToken.logoURI ? (
-                  <Image
-                    src={selectedToken.logoURI}
-                    alt={selectedToken.symbol}
-                    width={20}
-                    height={20}
-                    className="rounded-full"
-                    unoptimized={true}
-                    onError={(e) => {
-                      // Fallback to default icon error
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
+                  <div className="relative shrink-0">
+                    <Image
+                      src={selectedToken.logoURI}
+                      alt={selectedToken.symbol}
+                      width={32}
+                      height={32}
+                      className={cn(
+                        'rounded-full object-cover w-8 h-8',
+                        isWeb3Theme ? 'ring-2 ring-white/20' : ''
+                      )}
+                      unoptimized={true}
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  </div>
                 ) : (
-                  <Coins className="h-5 w-5 text-muted-foreground" />
+                  <div className={cn(
+                    'shrink-0 rounded-full flex items-center justify-center',
+                    isWeb3Theme ? 'w-8 h-8 bg-white/10 ring-2 ring-white/20' : 'w-8 h-8 bg-secondary'
+                  )}>
+                    <Coins className={cn(
+                      'h-5 w-5',
+                      isWeb3Theme ? 'text-white' : 'text-muted-foreground'
+                    )} />
+                  </div>
                 )}
-                <div className="flex flex-col items-start min-w-0">
-                  <span className="font-medium truncate">{selectedToken.symbol}</span>
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <span className={cn('font-medium truncate', isWeb3Theme && 'text-white')}>
+                    {selectedToken.symbol}
+                  </span>
                   {selectedToken.name !== selectedToken.symbol && (
-                    <span className="text-xs text-muted-foreground truncate max-w-full">
+                    <span className={cn(
+                      'text-xs truncate',
+                      isWeb3Theme ? 'text-indigo-300/80' : 'text-muted-foreground'
+                    )}>
                       {selectedToken.name}
                     </span>
                   )}
                 </div>
               </>
             ) : (
-              <span>{!chainId ? 'Select a network first' : placeholder}</span>
+              <span className={isWeb3Theme ? 'text-indigo-200/50' : ''}>
+                {!chainId ? 'Select a network first' : placeholder}
+              </span>
             )}
           </div>
-          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          <ChevronDown className={cn(
+            'ml-2 h-5 w-5 shrink-0 transition-transform duration-200',
+            open && 'rotate-180',
+            isWeb3Theme ? 'text-white opacity-80' : 'opacity-50'
+          )} />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[400px] p-0" align="start">
-        <Command>
-          <div className="flex items-center border-b px-3">
-            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+      <PopoverContent 
+        className={cn(
+          'w-[400px] p-0',
+          isWeb3Theme && 'bg-slate-900/98 backdrop-blur-xl border-2 border-white/20 shadow-2xl'
+        )} 
+        align="start"
+      >
+        <Command className={isWeb3Theme ? 'bg-transparent' : ''}>
+          <div className={cn(
+            'flex items-center border-b px-4 py-3',
+            isWeb3Theme ? 'border-white/20' : ''
+          )}>
+            <Search className={cn(
+              'mr-2 h-4 w-4 shrink-0',
+              isWeb3Theme ? 'text-white opacity-50' : 'opacity-50'
+            )} />
             <input
               placeholder="Search tokens..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              className={cn(
+                'flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50 placeholder:text-black',
+                isWeb3Theme 
+                  ? 'text-white placeholder:text-black' 
+                  : 'placeholder:text-black'
+              )}
             />
           </div>
-          <div className="max-h-[300px] overflow-y-auto">
-            {filteredTokens.length === 0 ? (
-              <div className="py-6 text-center text-sm text-muted-foreground">
+          <div className={cn(
+            'max-h-[300px] overflow-y-auto',
+            isWeb3Theme && 'custom-scrollbar'
+          )}>
+            {isLoadingSquid ? (
+              <div className={cn(
+                'py-6 text-center text-sm',
+                isWeb3Theme ? 'text-indigo-200/70' : 'text-muted-foreground'
+              )}>
+                Loading tokens from Squid...
+              </div>
+            ) : filteredTokens.length === 0 ? (
+              <div className={cn(
+                'py-6 text-center text-sm',
+                isWeb3Theme ? 'text-indigo-200/70' : 'text-muted-foreground'
+              )}>
                 {!chainId ? 'Select a network first' : 'No tokens found.'}
               </div>
             ) : (
               <CommandGroup>
-                {filteredTokens.map((token) => (
-                  <CommandItem
-                    key={`${token.address}-${token.chainId}`}
-                    value={`${token.symbol}-${token.name}-${token.address}`}
-                    onSelect={() => handleSelect(token)}
-                    className="cursor-pointer"
-                  >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      {token.logoURI ? (
-                        <Image
-                          src={token.logoURI}
-                          alt={token.symbol}
-                          width={32}
-                          height={32}
-                          className="rounded-full flex-shrink-0"
-                          unoptimized={true}
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
-                          <Coins className="h-4 w-4 text-muted-foreground" />
-                        </div>
+                {filteredTokens.map((token) => {
+                  const isSelected = selectedToken?.address.toLowerCase() === token.address.toLowerCase();
+                  return (
+                    <CommandItem
+                      key={`${token.address}-${token.chainId}`}
+                      value={`${token.symbol}-${token.name}-${token.address}`}
+                      onSelect={() => handleSelect(token)}
+                      className={cn(
+                        'cursor-pointer transition-all duration-150',
+                        isWeb3Theme && isSelected && 'bg-linear-to-r from-blue-500/20 to-purple-500/20 border-l-2 border-blue-400',
+                        isWeb3Theme && !isSelected && 'hover:bg-white/5 border-l-2 border-transparent',
+                        isWeb3Theme && 'p-4'
                       )}
-                      <div className="flex flex-col flex-1 min-w-0">
-                        <span className="font-medium">{token.symbol}</span>
-                        <span className="text-xs text-muted-foreground truncate">
-                          {token.name}
-                        </span>
-                        {token.address !== '0x0000000000000000000000000000000000000000' && (
-                          <span className="text-xs text-muted-foreground truncate font-mono">
-                            {token.address.slice(0, 6)}...{token.address.slice(-4)}
+                    >
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        {token.logoURI ? (
+                          <div className="relative shrink-0">
+                            <Image
+                              src={token.logoURI}
+                              alt={token.symbol}
+                              width={32}
+                              height={32}
+                              className={cn(
+                                'rounded-full object-cover shrink-0',
+                                isWeb3Theme ? 'w-8 h-8 ring-2 ring-white/20' : 'w-8 h-8'
+                              )}
+                              unoptimized={true}
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                            {isSelected && isWeb3Theme && (
+                              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-blue-500 rounded-full border-2 border-slate-900 flex items-center justify-center">
+                                <Check className="h-2.5 w-2.5 text-white" />
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className={cn(
+                            'w-8 h-8 rounded-full flex items-center justify-center shrink-0',
+                            isWeb3Theme ? 'bg-white/10 ring-2 ring-white/20' : 'bg-secondary'
+                          )}>
+                            <Coins className={cn(
+                              'h-4 w-4',
+                              isWeb3Theme ? 'text-white' : 'text-muted-foreground'
+                            )} />
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <span className={cn('font-medium truncate', isWeb3Theme && 'text-white')}>
+                            {token.symbol}
                           </span>
+                          {token.name !== token.symbol && (
+                            <span className={cn(
+                              'text-xs truncate',
+                              isWeb3Theme ? 'text-indigo-300/80' : 'text-muted-foreground'
+                            )}>
+                              {token.name}
+                            </span>
+                          )}
+                          {token.address !== '0x0000000000000000000000000000000000000000' && (
+                            <span className={cn(
+                              'text-xs truncate font-mono',
+                              isWeb3Theme ? 'text-indigo-300/60' : 'text-muted-foreground'
+                            )}>
+                              {token.address.slice(0, 6)}...{token.address.slice(-4)}
+                            </span>
+                          )}
+                        </div>
+                        {isSelected && !isWeb3Theme && (
+                          <Check className="h-4 w-4 shrink-0" />
                         )}
                       </div>
-                      {selectedToken?.address.toLowerCase() === token.address.toLowerCase() && (
-                        <Check className="h-4 w-4 flex-shrink-0" />
-                      )}
-                    </div>
-                  </CommandItem>
-                ))}
+                    </CommandItem>
+                  );
+                })}
               </CommandGroup>
             )}
           </div>
         </Command>
         {selectedToken && (
-          <div className="border-t p-3 bg-muted/50">
-            <div className="text-xs text-muted-foreground space-y-1">
+          <div className={cn(
+            'border-t p-3',
+            isWeb3Theme ? 'border-white/20 bg-white/5' : 'bg-muted/50'
+          )}>
+            <div className={cn(
+              'text-xs space-y-1',
+              isWeb3Theme ? 'text-indigo-200/70' : 'text-muted-foreground'
+            )}>
               <div className="flex justify-between">
                 <span>Decimals:</span>
-                <span className="font-medium">{selectedToken.decimals}</span>
+                <span className={cn('font-medium', isWeb3Theme && 'text-white')}>
+                  {selectedToken.decimals}
+                </span>
               </div>
               {selectedToken.address !== '0x0000000000000000000000000000000000000000' && (
                 <div className="flex justify-between items-center gap-2">
                   <span>Address:</span>
-                  <span className="font-mono text-xs truncate max-w-[250px]">
+                  <span className={cn(
+                    'font-mono text-xs truncate max-w-[250px]',
+                    isWeb3Theme ? 'text-indigo-300/70' : ''
+                  )}>
                     {selectedToken.address}
                   </span>
                 </div>

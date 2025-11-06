@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * CDP (Coinbase Developer Platform) Client for Server Wallet v2
  * Handles automatic signing and transaction execution
@@ -21,25 +22,71 @@ interface TransferParams {
 // }
 
 export class CDPService {
-  private cdp: CdpClient;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private cdp: CdpClient | null = null;
   private mainAccount: any = null; // CDP SDK doesn't export proper types
+  private isInitialized = false;
 
+  /**
+   * Constructor - no initialization happens here
+   * CDP client is initialized lazily when needed
+   */
   constructor() {
-    this.cdp = new CdpClient({
-      apiKeyId: process.env.CDP_API_KEY_ID!,
-      apiKeySecret: process.env.CDP_API_KEY_SECRET!,
-      walletSecret: process.env.CDP_WALLET_SECRET!,
-    });
+    // Empty constructor - initialization happens lazily
+  }
+
+  /**
+   * Lazy initialization of CDP client
+   * Only initializes when actually needed and if API keys are available
+   */
+  private initializeCDPClient(): void {
+    if (this.isInitialized && this.cdp) {
+      return;
+    }
+
+    const apiKeyId = process.env.CDP_API_KEY_ID;
+    const apiKeySecret = process.env.CDP_API_KEY_SECRET;
+    const walletSecret = process.env.CDP_WALLET_SECRET;
+
+    if (!apiKeyId || !apiKeySecret) {
+      console.warn('CDP API keys not configured. CDP features will be disabled.');
+      this.isInitialized = true;
+      return;
+    }
+
+    try {
+      this.cdp = new CdpClient({
+        apiKeyId,
+        apiKeySecret,
+        walletSecret: walletSecret || undefined, // Optional for read-only operations
+      });
+      this.isInitialized = true;
+    } catch (error) {
+      console.error('Failed to initialize CDP client:', error);
+      this.isInitialized = true;
+    }
+  }
+
+  /**
+   * Check if CDP client is available
+   */
+  private isCDPAvailable(): boolean {
+    if (!this.isInitialized) {
+      this.initializeCDPClient();
+    }
+    return this.cdp !== null;
   }
 
   /**
    * Initialize the main server wallet account
    */
   async initializeMainAccount() {
+    if (!this.isCDPAvailable()) {
+      throw new Error('CDP client is not available. Please configure CDP_API_KEY_ID and CDP_API_KEY_SECRET environment variables.');
+    }
+
     try {
       // Get or create the main account that will handle all transactions
-      this.mainAccount = await this.cdp.evm.getOrCreateAccount({
+      this.mainAccount = await this.cdp!.evm.getOrCreateAccount({
         name: "PaymasterMainAccount",
       });
 
@@ -277,8 +324,17 @@ export class CDPService {
 
   /**
    * Check if a token requires swapping
+   * This method doesn't require CDP client initialization
    */
   isSwapRequired(token: string): boolean {
+    const directTokens = ["USDC", "USDT", "ETH", "BTC", "SOL"];
+    return !directTokens.includes(token.toUpperCase());
+  }
+
+  /**
+   * Static version that can be used without instantiating the service
+   */
+  static isSwapRequired(token: string): boolean {
     const directTokens = ["USDC", "USDT", "ETH", "BTC", "SOL"];
     return !directTokens.includes(token.toUpperCase());
   }

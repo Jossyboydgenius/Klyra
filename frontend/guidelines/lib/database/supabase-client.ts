@@ -4,7 +4,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON!;
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -64,7 +64,7 @@ export class TransactionService {
    */
   async getTransactionByReference(reference: string): Promise<Transaction | null> {
     try {
-      const { data, error } = await this.supabase
+      const { data, error } = await supabase
         .from('transactions')
         .select('*')
         .eq('payment_reference', reference)
@@ -84,7 +84,7 @@ export class TransactionService {
 
   async getTransactionById(id: string): Promise<Transaction | null> {
     try {
-      const { data, error } = await this.supabase
+      const { data, error } = await supabase
         .from('transactions')
         .select('*')
         .eq('id', id)

@@ -4,7 +4,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON!;
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -24,6 +24,8 @@ export interface Transaction {
   crypto_asset: string;
   crypto_amount: string;
   network: string;
+  chain_id?: string;
+  token_address?: string;
   transaction_type: 'direct' | 'swap';
   coinbase_onramp_url?: string;
   coinbase_session_token?: string;
@@ -64,10 +66,10 @@ export class TransactionService {
    */
   async getTransactionByReference(reference: string): Promise<Transaction | null> {
     try {
-      const { data, error } = await this.supabase
+      const { data, error } = await supabase
         .from('transactions')
         .select('*')
-        .eq('payment_reference', reference)
+        .eq('paystack_reference', reference)
         .single();
 
       if (error) {
@@ -84,7 +86,7 @@ export class TransactionService {
 
   async getTransactionById(id: string): Promise<Transaction | null> {
     try {
-      const { data, error } = await this.supabase
+      const { data, error } = await supabase
         .from('transactions')
         .select('*')
         .eq('id', id)

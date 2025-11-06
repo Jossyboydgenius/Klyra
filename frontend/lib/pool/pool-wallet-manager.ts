@@ -220,7 +220,7 @@ export class PoolWalletManager {
     const hash = await client.sendTransaction({
       to,
       data,
-      value: value || 0n,
+      value: value || BigInt(0),
     });
 
     console.log(`Executed transaction on chain ${chainId}: ${hash}`);

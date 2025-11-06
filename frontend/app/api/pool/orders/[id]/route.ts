@@ -12,10 +12,11 @@ import { adminAuthService } from '@/lib/auth/admin-auth';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const order = await orderQueue.getOrder(params.id);
+    const { id } = await params;
+    const order = await orderQueue.getOrder(id);
     
     if (!order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
@@ -37,7 +38,7 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verify admin authentication
@@ -54,7 +55,8 @@ export async function POST(
     }
 
     // Process order
-    await orderQueue.processOrder(params.id);
+    const { id } = await params;
+    await orderQueue.processOrder(id);
 
     return NextResponse.json({ message: 'Order processed successfully' });
   } catch (error: any) {

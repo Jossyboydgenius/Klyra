@@ -5,6 +5,7 @@ import { socketAPI } from './aggregators/socket';
 import { lifiAPI } from './aggregators/lifi';
 import { SquidAPI } from './aggregators/squid';
 import { AcrossAPI } from './aggregators/across';
+import { normalizeNativeTokenAddress } from './token-utils';
 import type { PaymentIntent, UnifiedRoute, RouteComparison, RouteStep } from './payment-types';
 
 export class RouteAggregator {
@@ -84,135 +85,13 @@ export class RouteAggregator {
   }
 
   private async get1inchRoute(intent: PaymentIntent, amount: string): Promise<UnifiedRoute | null> {
-    try {
-      const isCrossChain = intent.sender.chain !== intent.recipient.chain;
-
-      if (isCrossChain) {
-        // Use Fusion+ for cross-chain
-        const quote = await oneInchAPI.getFusionQuote({
-          srcChain: intent.sender.chain,
-          dstChain: intent.recipient.chain,
-          srcTokenAddress: intent.sender.token.address,
-          dstTokenAddress: intent.recipient.token.address,
-          amount,
-          walletAddress: intent.sender.address,
-          enableEstimate: true,
-          source: 'fusion',
-          slippage: 0.5,
-        });
-
-        const preset = quote.presets[quote.recommendedPreset === 'custom' ? 'fast' : quote.recommendedPreset];
-
-        return {
-          id: `1inch-${Date.now()}`,
-          provider: '1inch-fusion',
-          providerName: '1inch Fusion+',
-          fromChain: intent.sender.chain,
-          fromToken: intent.sender.token.address,
-          fromAmount: amount,
-          toChain: intent.recipient.chain,
-          toToken: intent.recipient.token.address,
-          toAmount: quote.dstTokenAmount,
-          toAmountMin: quote.dstTokenAmount, // Could calculate with slippage
-          steps: this.parse1inchSteps(intent, preset),
-          totalGasUSD: 0, // Not provided in estimate
-          totalFeeUSD: parseFloat(quote.prices.usd.srcToken) * parseFloat(amount) / 1e18 * 0.001, // Estimate 0.1%
-          estimatedTime: preset.auctionDuration,
-          priceImpact: quote.priceImpactPercent,
-          transactions: [], // Will be generated during execution
-          requiresApproval: true,
-          rawData: quote,
-        };
-      } else {
-        // Use regular swap for same-chain
-        const quote = await oneInchAPI.getQuote({
-          chainId: intent.sender.chain,
-          src: intent.sender.token.address,
-          dst: intent.recipient.token.address,
-          amount,
-        });
-
-        return {
-          id: `1inch-swap-${Date.now()}`,
-          provider: '1inch-fusion',
-          providerName: '1inch Swap',
-          fromChain: intent.sender.chain,
-          fromToken: intent.sender.token.address,
-          fromAmount: amount,
-          toChain: intent.recipient.chain,
-          toToken: intent.recipient.token.address,
-          toAmount: quote.dstAmount,
-          toAmountMin: quote.dstAmount,
-          steps: [
-            {
-              type: 'swap',
-              chain: intent.sender.chain,
-              protocol: '1inch',
-              description: `Swap ${intent.sender.token.symbol} to ${intent.recipient.token.symbol}`,
-            },
-          ],
-          totalGasUSD: quote.gas ? quote.gas * parseInt(quote.srcToken.address) / 1e18 : 0,
-          totalFeeUSD: 0,
-          estimatedTime: 30,
-          transactions: [],
-          requiresApproval: true,
-          rawData: quote,
-        };
-      }
-    } catch (error) {
-      console.error('1inch route error:', error);
-      return null;
-    }
+    // 1inch is coming soon - return null to skip
+    return null;
   }
 
   private async getSocketRoutes(intent: PaymentIntent, amount: string): Promise<UnifiedRoute[]> {
-    try {
-      const result = await socketAPI.getQuote({
-        fromChainId: intent.sender.chain,
-        fromTokenAddress: intent.sender.token.address,
-        toChainId: intent.recipient.chain,
-        toTokenAddress: intent.recipient.token.address,
-        fromAmount: amount,
-        userAddress: intent.sender.address,
-        recipient: intent.recipient.address,
-        uniqueRoutesPerBridge: true,
-        sort: 'output',
-      });
-
-      return result.result.routes.slice(0, 3).map((route, idx) => ({
-        id: `socket-${idx}-${Date.now()}`,
-        provider: 'socket',
-        providerName: 'Socket',
-        fromChain: route.fromChainId,
-        fromToken: route.fromAsset.address,
-        fromAmount: route.fromAmount,
-        toChain: route.toChainId,
-        toToken: route.toAsset.address,
-        toAmount: route.toAmount,
-        toAmountMin: route.toAmount,
-        steps: route.userTxs.map(tx => ({
-          type: tx.userTxType === 'fund-movr' ? 'bridge' : 'swap',
-          chain: tx.chainId,
-          protocol: tx.txType,
-          description: `${tx.userTxType} via ${tx.txType}`,
-        })),
-        totalGasUSD: route.totalGasFeesInUsd,
-        totalFeeUSD: parseFloat(route.integratorFee.amount),
-        estimatedTime: route.serviceTime,
-        transactions: route.userTxs.map(tx => ({
-          chainId: tx.chainId,
-          to: tx.txTarget,
-          data: tx.txData,
-          value: tx.value,
-        })),
-        requiresApproval: route.userTxs.some(tx => tx.approvalData),
-        approvalData: route.userTxs.find(tx => tx.approvalData)?.approvalData,
-        rawData: route,
-      }));
-    } catch (error) {
-      console.error('Socket route error:', error);
-      return [];
-    }
+    // Socket is coming soon - return empty array to skip
+    return [];
   }
 
   private async getLiFiRoutes(intent: PaymentIntent, amount: string): Promise<UnifiedRoute[]> {
@@ -263,11 +142,15 @@ export class RouteAggregator {
 
   private async getSquidRoute(intent: PaymentIntent, amount: string): Promise<UnifiedRoute | null> {
     try {
+      // Normalize native token addresses for Squid (Squid uses 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE)
+      const fromTokenForSquid = normalizeNativeTokenAddress(intent.sender.token.address, 'squid');
+      const toTokenForSquid = normalizeNativeTokenAddress(intent.recipient.token.address, 'squid');
+
       const result = await this.squidAPI.getRoute({
         fromChain: intent.sender.chain,
         toChain: intent.recipient.chain,
-        fromToken: intent.sender.token.address,
-        toToken: intent.recipient.token.address,
+        fromToken: fromTokenForSquid,
+        toToken: toTokenForSquid,
         fromAmount: amount,
         fromAddress: intent.sender.address,
         toAddress: intent.recipient.address,

@@ -26,12 +26,12 @@ export const Web3Container: React.FC<Web3ContainerProps> = ({
   withPadding = true 
 }) => {
   return (
-    <div className={`min-h-screen w-full bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 ${withPadding ? 'px-6 py-8' : ''} ${className}`}>
+    <div className={`min-h-screen w-full bg-linear-to-br from-slate-900 via-purple-900 to-slate-900 ${withPadding ? 'px-6 py-8' : ''} ${className}`}>
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-cyan-400/20 to-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute top-3/4 right-1/4 w-96 h-96 bg-gradient-to-r from-purple-400/20 to-pink-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-violet-400/10 to-purple-500/10 rounded-full blur-3xl animate-pulse delay-500"></div>
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-linear-to-r from-cyan-400/20 to-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute top-3/4 right-1/4 w-96 h-96 bg-linear-to-r from-purple-400/20 to-pink-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-linear-to-r from-violet-400/10 to-purple-500/10 rounded-full blur-3xl animate-pulse delay-500"></div>
       </div>
       
       <div className="relative z-10">
@@ -49,7 +49,7 @@ interface Web3CardProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export const Web3Card: React.FC<Web3CardProps> = ({ children, className = '', ...props }) => {
   return (
-    <div className={`bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-2xl rounded-3xl p-6 border border-white/10 shadow-2xl ${className}`} {...props}>
+    <div className={`bg-linear-to-br from-white/10 to-white/5 backdrop-blur-2xl rounded-3xl p-6 border border-white/10 shadow-2xl ${className}`} {...props}>
       {children}
     </div>
   );

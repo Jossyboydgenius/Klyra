@@ -77,21 +77,73 @@ export const MAINNET_STABLECOIN_ADDRESSES: Record<string, Record<string, string>
 /**
  * Get all available chains from wagmi
  * Deduplicates chains by ID (some chains like base/baseMainnet have same ID)
+ * Note: For enhanced chain list including chainid.network, use getAllChainsEnhanced()
  */
 export function getAllChains(): Chain[] {
   const chains = Object.values(allChains).filter(
-    (chain): chain is Chain => typeof chain === 'object' && 'id' in chain && 'name' in chain
+    (chain): chain is typeof chain & { id: number; name: string } => 
+      typeof chain === 'object' && chain !== null && 'id' in chain && 'name' in chain
   );
+  
+  // Convert wagmi chains to our Chain format
+  const convertedChains: Chain[] = chains.map(chain => ({
+    id: chain.id,
+    name: chain.name,
+    network: 'network' in chain ? chain.network : chain.name.toLowerCase().replace(/\s+/g, '-'),
+    nativeCurrency: chain.nativeCurrency,
+    rpcUrls: chain.rpcUrls ? {
+      default: {
+        http: [...chain.rpcUrls.default.http] // Convert readonly array to mutable
+      }
+    } : undefined,
+    blockExplorers: chain.blockExplorers ? {
+      default: {
+        name: chain.blockExplorers.default.name,
+        url: chain.blockExplorers.default.url
+      }
+    } : undefined,
+    testnet: chain.testnet,
+  }));
   
   // Deduplicate chains by ID - keep first occurrence
   const uniqueChains = new Map<number, Chain>();
-  chains.forEach(chain => {
+  convertedChains.forEach(chain => {
     if (!uniqueChains.has(chain.id)) {
       uniqueChains.set(chain.id, chain);
     }
   });
   
   return Array.from(uniqueChains.values());
+}
+
+/**
+ * Get all available chains including chainid.network chains
+ * This merges wagmi chains with chainid.network chains, with wagmi chains taking priority
+ */
+export async function getAllChainsEnhanced(): Promise<Chain[]> {
+  const wagmiChains = getAllChains();
+  const wagmiChainIds = new Set(wagmiChains.map(c => c.id));
+  
+  // Import dynamically to avoid circular dependencies
+  const { getAllChainIdNetworkChains } = await import('./chainid-network');
+  const chainIdChains = await getAllChainIdNetworkChains();
+  
+  // Merge: wagmi chains first, then chainid.network chains that aren't in wagmi
+  const allChainsMap = new Map<number, Chain>();
+  
+  // Add wagmi chains first (they take priority)
+  wagmiChains.forEach(chain => {
+    allChainsMap.set(chain.id, chain);
+  });
+  
+  // Add chainid.network chains that aren't already in wagmi
+  chainIdChains.forEach(chain => {
+    if (!allChainsMap.has(chain.id)) {
+      allChainsMap.set(chain.id, chain);
+    }
+  });
+  
+  return Array.from(allChainsMap.values());
 }
 
 /**
@@ -125,10 +177,18 @@ export function getTestnetChains(): Chain[] {
 }
 
 /**
- * Get chain by ID
+ * Get chain by ID (from wagmi chains only)
  */
 export function getChainById(chainId: number): Chain | undefined {
   return getAllChains().find(chain => chain.id === chainId);
+}
+
+/**
+ * Get chain by ID (including chainid.network chains)
+ */
+export async function getChainByIdEnhanced(chainId: number): Promise<Chain | undefined> {
+  const allChains = await getAllChainsEnhanced();
+  return allChains.find(chain => chain.id === chainId);
 }
 
 /**
@@ -276,6 +336,31 @@ export function getCombinedTokensForChain(chainId: number): Token[] {
     decimals: chain.nativeCurrency.decimals,
     logoURI: getDefaultLogoForToken(chain.nativeCurrency.symbol),
   });
+
+  // Add custom tokens
+  // WXRP on Ethereum (chainId: 1)
+  if (chainId === 1) {
+    tokensSet.set('0xef4461891dfb3ac8572ccf7c794664a8dd927945-wxrp', {
+      chainId: 1,
+      address: '0xef4461891dfb3ac8572ccf7c794664a8dd927945',
+      name: 'Wrapped XRP',
+      symbol: 'WXRP',
+      decimals: 18,
+      logoURI: 'https://assets.coingecko.com/coins/images/52/standard/xrp-symbol-white-128.png',
+    });
+  }
+
+  // WCT (WalletConnect Token) on Base (chainId: 8453)
+  if (chainId === 8453) {
+    tokensSet.set('0xef4461891dfb3ac8572ccf7c794664a8dd927945-wct', {
+      chainId: 8453,
+      address: '0xef4461891dfb3ac8572ccf7c794664a8dd927945',
+      name: 'WalletConnect Token',
+      symbol: 'WCT',
+      decimals: 18,
+      logoURI: 'https://avatars.githubusercontent.com/u/37784886',
+    });
+  }
 
   return Array.from(tokensSet.values()).sort((a, b) => {
     // Sort native token first, then stablecoins, then alphabetically

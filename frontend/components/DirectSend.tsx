@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useWriteContract, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,7 +39,10 @@ export function DirectSend({ onComplete, onCancel }: DirectSendProps) {
   const [message, setMessage] = useState('');
 
   // Transaction state
-  const { writeContract, data: hash, isPending } = useWriteContract();
+  const { writeContract, data: contractHash, isPending: isContractPending } = useWriteContract();
+  const { sendTransaction, data: sendHash, isPending: isSendPending } = useSendTransaction();
+  const hash = contractHash || sendHash;
+  const isPending = isContractPending || isSendPending;
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
   const [error, setError] = useState<string | null>(null);
@@ -78,7 +81,7 @@ export function DirectSend({ onComplete, onCancel }: DirectSendProps) {
 
       // Native token transfer
       if (token.address === '0x0000000000000000000000000000000000000000') {
-        writeContract({
+        sendTransaction({
           to: recipient as Address,
           value: amountWei,
           chainId: chain,

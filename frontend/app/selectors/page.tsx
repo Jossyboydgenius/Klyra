@@ -68,7 +68,7 @@ This is just a demo. In a real app, this would process the transaction.
   const isFormValid = selectedChainId && selectedToken && amount && walletAddress;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
         <div className="mb-8">
@@ -526,29 +526,6 @@ const [token, setToken] = useState<Token | null>(null);
             </Card>
           </TabsContent>
         </Tabs>
-
-        {/* Footer Info */}
-        <Card className="mt-8">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-4">
-              <AlertCircle className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
-              <div className="space-y-2 text-sm">
-                <p className="font-semibold">About these components:</p>
-                <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                  <li>Access to 100+ blockchain networks from wagmi</li>
-                  <li>20,000+ tokens from Uniswap and Superbridge token lists</li>
-                  <li>Automatic testnet USDC support for 7 testnets</li>
-                  <li>Smart search and filtering capabilities</li>
-                  <li>Fully customizable with className prop</li>
-                  <li>Type-safe with full TypeScript support</li>
-                </ul>
-                <p className="pt-2">
-                  <strong>Documentation:</strong> See <code className="bg-secondary px-2 py-1 rounded">frontend/components/README-SELECTORS.md</code> for full API documentation.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );

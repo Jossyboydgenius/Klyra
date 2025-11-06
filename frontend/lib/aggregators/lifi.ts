@@ -215,6 +215,31 @@ export class LiFiAPI {
     });
   }
 
+  async getStepTransaction(step: any): Promise<any> {
+    // LI.FI requires the full step object, not just routeId/stepIndex
+    // The step should already have all required fields including includedSteps
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    if (this.apiKey) {
+      headers['x-lifi-api-key'] = this.apiKey;
+    }
+
+    const response = await fetch(`${this.baseURL}/advanced/stepTransaction`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(step), // Send the entire step object
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(error.message || `LiFi API Error: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
   async getTools(): Promise<any> {
     return this.request('/tools');
   }

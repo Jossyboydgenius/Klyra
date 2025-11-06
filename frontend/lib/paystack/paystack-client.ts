@@ -57,6 +57,9 @@ export class PaystackService {
       network: string;
       user_wallet: string;
       transaction_type: 'direct' | 'swap';
+      chain_id?: string;
+      token_address?: string;
+      [key: string]: any; // Allow additional metadata fields
     };
   }): Promise<PaystackInitializeResponse> {
     try {

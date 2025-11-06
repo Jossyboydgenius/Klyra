@@ -4,7 +4,7 @@
  */
 
 import { poolExecutor } from './pool-executor';
-import type { Token } from '@/lib/payment-types';
+import type { Token } from '@/lib/chain-data';
 
 export interface PriceQuote {
   // Rates

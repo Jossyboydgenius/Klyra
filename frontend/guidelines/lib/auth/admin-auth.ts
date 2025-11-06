@@ -3,7 +3,7 @@
  */
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-// import { supabase } from '@/lib/database/supabase-client';
+import { supabase } from '@/lib/database/supabase-client';
 
 export interface AdminSession {
   id: string;

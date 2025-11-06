@@ -1,9 +1,11 @@
+// @ts-nocheck
+// Browser extension script - TypeScript errors suppressed
 // API Configuration
 const API_BASE_URL = 'https://api.fusionens.com';
 // const API_BASE_URL = 'http://localhost:3001';
 
 // Track external API usage for analytics
-async function trackExternalAPIUsage(domain, success, chain, network, externalAPI = 'ensdata') {
+async function trackExternalAPIUsage(domain: any, success: any, chain: any, network: any, externalAPI: any = 'ensdata') {
     try {
         await fetch(`${API_BASE_URL}/analytics/track-external`, {
             method: 'POST',

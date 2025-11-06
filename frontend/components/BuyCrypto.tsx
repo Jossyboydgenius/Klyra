@@ -1,10 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { Web3Container, Web3Card, Web3Button } from './Web3Theme';
 import { NetworkSelector } from './NetworkSelector';
 import { TokenSelector } from './TokenSelector';
 import type { Chain, Token } from '@/lib/chain-data';
+import { useAccount } from 'wagmi';
+import { CRYPTO_INFO } from '@/lib/constants';
+import { ArrowUpDown, DollarSign, Coins } from 'lucide-react';
+import { useTokenPrice, useFiatRates } from '@/hooks/useTokenPrice';
 
 interface Country {
   code: string;
@@ -14,12 +18,13 @@ interface Country {
 }
 
 const COUNTRIES: Country[] = [
-  { code: 'NG', name: 'Nigeria', currency: 'NGN', flag: '🇳🇬' },
-  { code: 'GH', name: 'Ghana', currency: 'GHS', flag: '🇬🇭' },
-  { code: 'KE', name: 'Kenya', currency: 'KES', flag: '🇰🇪' }
+  { code: 'NG', name: 'Nigeria', currency: 'NGN', flag: 'https://png.pngtree.com/png-vector/20240108/ourmid/pngtree-nigeria-round-flag-glossy-glass-effect-vector-transparent-background-png-image_11428986.png' },
+  { code: 'GH', name: 'Ghana', currency: 'GHS', flag: 'https://png.pngtree.com/png-vector/20240108/ourmid/pngtree-ghana-round-flag-glossy-glass-effect-vector-transparent-background-png-image_11427251.png' },
+  { code: 'KE', name: 'Kenya', currency: 'KES', flag: 'https://png.pngtree.com/png-vector/20240108/ourmid/pngtree-kenya-round-flag-glossy-glass-effect-vector-transparent-background-png-image_11427461.png' }
 ];
 
 export default function BuyCrypto() {
+  const { address: connectedAddress } = useAccount();
   const [selectedCountry, setSelectedCountry] = useState('');
   const [selectedChainId, setSelectedChainId] = useState<number | null>(null);
   const [selectedChain, setSelectedChain] = useState<Chain | null>(null);
@@ -28,6 +33,18 @@ export default function BuyCrypto() {
   const [walletAddress, setWalletAddress] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
+  const [inputMode, setInputMode] = useState<'crypto' | 'usd'>('usd'); // Default to USD for easier comprehension
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const countryDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Auto-fill wallet address if connected
+  useEffect(() => {
+    if (connectedAddress && !walletAddress) {
+      setWalletAddress(connectedAddress);
+    }
+  }, [connectedAddress, walletAddress]);
 
   const handleNetworkChange = (chainId: number, chain: Chain) => {
     setSelectedChainId(chainId);
@@ -40,11 +57,93 @@ export default function BuyCrypto() {
     setSelectedToken(token);
   };
 
+  const selectedCountryData = COUNTRIES.find(c => c.code === selectedCountry);
+
+  // Fetch real-time token price from CoinGecko
+  const { price_usd: tokenPriceUSD, isLoading: isPriceLoading, error: priceError } = useTokenPrice(
+    selectedToken?.symbol || null
+  );
+
+  // Fetch real-time fiat exchange rates
+  const fiatRates = useFiatRates();
+
+  // Calculate conversions
+  const cryptoAmount = useMemo(() => {
+    if (!amount || !tokenPriceUSD) return '';
+    if (inputMode === 'crypto') return amount;
+    // USD to crypto
+    const usdValue = parseFloat(amount);
+    if (isNaN(usdValue) || usdValue <= 0) return '';
+    return (usdValue / tokenPriceUSD).toFixed(8);
+  }, [amount, tokenPriceUSD, inputMode]);
+
+  const usdAmount = useMemo(() => {
+    if (!amount || !tokenPriceUSD) return '';
+    if (inputMode === 'usd') return amount;
+    // Crypto to USD
+    const cryptoValue = parseFloat(amount);
+    if (isNaN(cryptoValue) || cryptoValue <= 0) return '';
+    return (cryptoValue * tokenPriceUSD).toFixed(2);
+  }, [amount, tokenPriceUSD, inputMode]);
+
+  // Get fiat amount based on selected country using real-time exchange rates
+  const fiatAmount = useMemo(() => {
+    if (!selectedCountryData || !usdAmount) return '';
+    const usdValue = parseFloat(usdAmount);
+    if (isNaN(usdValue)) return '';
+    
+    // Use real-time exchange rates from API
+    const rate = fiatRates[selectedCountryData.currency as 'NGN' | 'GHS' | 'KES'] || 1;
+    return (usdValue * rate).toFixed(2);
+  }, [usdAmount, selectedCountryData, fiatRates]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (countryDropdownRef.current && !countryDropdownRef.current.contains(event.target as Node)) {
+        setIsCountryDropdownOpen(false);
+      }
+    };
+
+    if (isCountryDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isCountryDropdownOpen]);
+
+  const handleCountrySelect = (countryCode: string) => {
+    setSelectedCountry(countryCode);
+    setIsCountryDropdownOpen(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!selectedCountry || !selectedChainId || !selectedToken || !amount || !walletAddress) {
-      setError('Please fill in all fields');
+    if (!selectedCountry || !selectedChainId || !selectedToken || !amount || !walletAddress || !email || !phone) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    // Validate country selection
+    if (!selectedCountryData) {
+      setError('Please select a valid country');
+      return;
+    }
+
+    // Validate amounts
+    const finalCryptoAmount = inputMode === 'crypto' ? amount : cryptoAmount;
+    const finalUsdAmount = inputMode === 'usd' ? amount : usdAmount;
+    
+    if (!finalCryptoAmount || parseFloat(finalCryptoAmount) <= 0) {
+      setError('Please enter a valid amount');
+      return;
+    }
+
+    if (!finalUsdAmount || parseFloat(finalUsdAmount) <= 0) {
+      setError('Amount must be greater than 0');
       return;
     }
 
@@ -63,8 +162,12 @@ export default function BuyCrypto() {
           network: selectedChain?.name || `Chain ${selectedChainId}`,
           chain_id: selectedChainId,
           token_address: selectedToken.address,
-          crypto_amount: amount,
+          crypto_amount: finalCryptoAmount,
           user_wallet_address: walletAddress,
+          email: email,
+          phone: phone,
+          fiat_amount: parseFloat(fiatAmount || finalUsdAmount),
+          fiat_currency: selectedCountryData.currency,
         }),
       });
 
@@ -105,19 +208,99 @@ export default function BuyCrypto() {
             <label className="block text-sm font-medium text-white mb-2">
               Country
             </label>
-            <select
-              value={selectedCountry}
-              onChange={(e) => setSelectedCountry(e.target.value)}
-              className="w-full p-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-indigo-200/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm"
-              required
-            >
-              <option value="" className="bg-slate-800 text-white">Select your country</option>
-              {COUNTRIES.map((country) => (
-                <option key={country.code} value={country.code} className="bg-slate-800 text-white">
-                  {country.flag} {country.name} ({country.currency})
-                </option>
-              ))}
-            </select>
+            <div className="relative" ref={countryDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setIsCountryDropdownOpen(!isCountryDropdownOpen)}
+                className={`w-full p-4 bg-white/5 border-2 rounded-xl text-white backdrop-blur-sm flex items-center justify-between transition-all duration-200 ${
+                  isCountryDropdownOpen
+                    ? 'border-blue-500/50 bg-white/10 shadow-lg shadow-blue-500/20'
+                    : 'border-white/20 hover:border-white/30 hover:bg-white/10'
+                }`}
+              >
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  {selectedCountryData ? (
+                    <>
+                      <div className="relative shrink-0">
+                        <img
+                          src={selectedCountryData.flag}
+                          alt={selectedCountryData.name}
+                          width={32}
+                          height={32}
+                          className="rounded-full object-cover w-8 h-8 ring-2 ring-white/20"
+                        />
+                      </div>
+                      <div className="flex flex-col items-start min-w-0">
+                        <span className="font-medium text-white truncate w-full">
+                          {selectedCountryData.name}
+                        </span>
+                        <span className="text-xs text-indigo-300/80">
+                          {selectedCountryData.currency}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <span className="text-indigo-200/50">Select your country</span>
+                  )}
+                </div>
+                <svg
+                  className={`w-5 h-5 shrink-0 transition-transform duration-200 ${
+                    isCountryDropdownOpen ? 'rotate-180' : ''
+                  }`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {isCountryDropdownOpen && (
+                <div className="absolute z-50 w-full mt-2 bg-slate-900/98 backdrop-blur-xl border-2 border-white/20 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="max-h-64 overflow-y-auto custom-scrollbar">
+                    {COUNTRIES.map((country) => (
+                      <button
+                        key={country.code}
+                        type="button"
+                        onClick={() => handleCountrySelect(country.code)}
+                        className={`w-full p-4 flex items-center gap-3 transition-all duration-150 ${
+                          selectedCountry === country.code
+                            ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 border-l-2 border-blue-400'
+                            : 'hover:bg-white/5 border-l-2 border-transparent'
+                        }`}
+                      >
+                        <div className="relative shrink-0">
+                          <img
+                            src={country.flag}
+                            alt={country.name}
+                            width={32}
+                            height={32}
+                            className="rounded-full object-cover w-8 h-8 ring-2 ring-white/20"
+                          />
+                          {selectedCountry === country.code && (
+                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-blue-500 rounded-full border-2 border-slate-900 flex items-center justify-center">
+                              <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex flex-col items-start flex-1 min-w-0">
+                          <span className="font-medium text-white truncate w-full">
+                            {country.name}
+                          </span>
+                          <span className="text-xs text-indigo-300/80">
+                            {country.currency}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            {!selectedCountry && (
+              <p className="text-xs text-red-300 mt-1">Please select a country</p>
+            )}
           </div>
 
           {/* Network Selection */}
@@ -154,44 +337,163 @@ export default function BuyCrypto() {
             </p>
           </div>
 
-        {/* Amount Input */}
+        {/* Amount Input with Toggle */}
         <div>
-          <label className="block text-sm font-medium text-white mb-2">
-            Amount {selectedToken && `(${selectedToken.symbol})`}
-          </label>
-          <input
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            className="w-full p-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-indigo-200/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm"
-            placeholder="Enter amount"
-            min="0.01"
-            step="0.01"
-            required
-            disabled={!selectedToken}
-          />
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-sm font-medium text-white">
+              Amount
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                const currentValue = amount;
+                setInputMode(inputMode === 'crypto' ? 'usd' : 'crypto');
+                // Swap the values when toggling
+                if (inputMode === 'crypto') {
+                  setAmount(usdAmount);
+                } else {
+                  setAmount(cryptoAmount);
+                }
+              }}
+              className="flex items-center gap-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-sm text-white transition-colors"
+            >
+              <ArrowUpDown className="w-4 h-4" />
+              {inputMode === 'crypto' ? 'Switch to USD' : 'Switch to Crypto'}
+            </button>
+          </div>
+          
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-2">
+              {inputMode === 'crypto' ? (
+                <Coins className="w-5 h-5 text-indigo-300" />
+              ) : (
+                <DollarSign className="w-5 h-5 text-indigo-300" />
+              )}
+              <input
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="w-full p-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-indigo-200/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm"
+                placeholder={inputMode === 'crypto' ? `Enter ${selectedToken?.symbol || 'crypto'} amount` : 'Enter USD amount'}
+                min="0"
+                step={inputMode === 'crypto' ? '0.00000001' : '0.01'}
+                required
+                disabled={!selectedToken}
+              />
+            </div>
+            
+            {/* Show equivalent */}
+            {selectedToken && amount && parseFloat(amount) > 0 && (
+              <div className="mt-2 p-3 bg-white/5 border border-white/10 rounded-lg">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-indigo-200/80">
+                    {inputMode === 'crypto' ? 'USD Equivalent' : `${selectedToken.symbol} Amount`}
+                  </span>
+                  <span className="text-white font-medium">
+                    {inputMode === 'crypto' 
+                      ? `$${usdAmount || '0.00'}` 
+                      : `${cryptoAmount || '0'} ${selectedToken.symbol}`
+                    }
+                  </span>
+                </div>
+                {selectedCountryData && fiatAmount && (
+                  <div className="flex items-center justify-between text-sm mt-1">
+                    <span className="text-indigo-200/80">
+                      {selectedCountryData.currency} Equivalent
+                    </span>
+                    <span className="text-white font-medium">
+                      {selectedCountryData.currency === 'NGN' ? '₦' : selectedCountryData.currency === 'GHS' ? '₵' : 'KSh'}
+                      {fiatAmount}
+                    </span>
+                  </div>
+                )}
+                {tokenPriceUSD > 0 && (
+                  <div className="text-xs text-indigo-300/60 mt-2">
+                    1 {selectedToken.symbol} = ${tokenPriceUSD.toFixed(2)}
+                    {isPriceLoading && <span className="ml-2 text-yellow-400">(updating...)</span>}
+                    {priceError && <span className="ml-2 text-red-400">(using cached price)</span>}
+                  </div>
+                )}
+                {!tokenPriceUSD && selectedToken && !isPriceLoading && (
+                  <div className="text-xs text-yellow-400 mt-2">
+                    Price not available. Using fallback rate.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          
           <p className="text-sm text-indigo-200/70 mt-1">
             {selectedToken 
-              ? `How much ${selectedToken.symbol} do you want to buy?` 
+              ? `Enter the amount you want to buy in ${inputMode === 'crypto' ? selectedToken.symbol : 'USD'}` 
               : 'Select a token first'}
+          </p>
+        </div>
+
+        {/* Email Input */}
+        <div>
+          <label className="block text-sm font-medium text-white mb-2">
+            Email Address
+          </label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full p-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-indigo-200/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm"
+            placeholder="your@email.com"
+            required
+          />
+          <p className="text-sm text-indigo-200/70 mt-1">
+            For payment confirmation and receipt
+          </p>
+        </div>
+
+        {/* Phone Input */}
+        <div>
+          <label className="block text-sm font-medium text-white mb-2">
+            Phone Number
+          </label>
+          <input
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            className="w-full p-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-indigo-200/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm"
+            placeholder="+1234567890"
+            required
+          />
+          <p className="text-sm text-indigo-200/70 mt-1">
+            For payment notifications
           </p>
         </div>
 
         {/* Wallet Address Input */}
         <div>
-          <label className="block text-sm font-medium text-white mb-2">
-            Your Wallet Address
-          </label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-sm font-medium text-white">
+              Your Wallet Address
+            </label>
+            {connectedAddress && (
+              <button
+                type="button"
+                onClick={() => setWalletAddress(connectedAddress)}
+                className="text-xs text-blue-400 hover:text-blue-300"
+              >
+                Use Connected
+              </button>
+            )}
+          </div>
           <input
             type="text"
             value={walletAddress}
             onChange={(e) => setWalletAddress(e.target.value)}
-            className="w-full p-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-indigo-200/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm"
+            className="w-full p-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-indigo-200/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm font-mono text-sm"
             placeholder="0x..."
             required
           />
           <p className="text-sm text-indigo-200/70 mt-1">
-            Enter the wallet address where you want to receive your {selectedToken?.symbol || 'crypto'}
+            {connectedAddress 
+              ? 'Wallet address where you want to receive your crypto (or use connected wallet)'
+              : 'Enter the wallet address where you want to receive your ' + (selectedToken?.symbol || 'crypto')}
           </p>
         </div>
 
@@ -208,18 +510,6 @@ export default function BuyCrypto() {
             : 'Select Token to Continue'}
         </Web3Button>
       </form>
-      </Web3Card>
-
-      {/* Info Section */}
-      <Web3Card className="mt-8 bg-blue-500/20 border-blue-400/30">
-        <h3 className="font-semibold text-blue-300 mb-2">How it works:</h3>
-        <ol className="text-sm text-blue-200 space-y-1">
-          <li>1. Select your country and payment method</li>
-          <li>2. Choose blockchain network and token</li>
-          <li>3. Enter the amount and your wallet address</li>
-          <li>4. Complete payment using mobile money or bank transfer</li>
-          <li>5. Receive crypto directly in your wallet</li>
-        </ol>
       </Web3Card>
 
       {/* Selected Summary */}

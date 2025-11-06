@@ -82,7 +82,7 @@ export function WalletConnect({
   return (
     <>
       <Wallet className={className}>
-        <ConnectWallet text={connectText}>
+        <ConnectWallet disconnectedLabel={connectText}>
           <Name className="text-inherit" />
           {showBalance && <EthBalance />}
         </ConnectWallet>
@@ -147,7 +147,7 @@ export function WalletConnectButton({
   return (
     <>
       <Wallet className={className}>
-        <ConnectWallet text={text} onClick={() => setShowModal(true)}>
+        <ConnectWallet disconnectedLabel={text} onConnect={() => setShowModal(true)}>
           <Name className="text-inherit" />
         </ConnectWallet>
       </Wallet>

@@ -6,7 +6,8 @@
 import { poolWalletManager } from './pool-wallet-manager';
 import { poolBalanceTracker } from './pool-balance-tracker';
 import { RouteAggregator } from '@/lib/route-aggregator';
-import type { UnifiedRoute, PaymentIntent, Token } from '@/lib/payment-types';
+import type { UnifiedRoute, PaymentIntent } from '@/lib/payment-types';
+import type { Token } from '@/lib/chain-data';
 import type { Address, Hash } from 'viem';
 
 export interface ExecutionResult {
@@ -51,7 +52,7 @@ export class PoolExecutor {
       console.log(`Executing on-ramp: ${params.amount} ${params.fromToken.symbol} → ${params.toToken.symbol}`);
 
       // Step 1: Check if we have target token
-      const hasToken = await this.checkHasToken(params.toChain, params.toToken.address);
+      const hasToken = await this.checkHasToken(params.toChain, params.toToken.address as Address);
 
       let txHash: Hash;
       let route: UnifiedRoute | undefined;
@@ -124,8 +125,8 @@ export class PoolExecutor {
       const executionTime = Date.now() - startTime;
 
       // Step 2: Update pool balance
-      await poolBalanceTracker.increaseBalance(chainId, token.address, amount);
-      await poolBalanceTracker.decreaseBalance(chainId, result.usdcAddress, result.usdcAmount);
+      await poolBalanceTracker.increaseBalance(chainId, token.address as Address, amount);
+      await poolBalanceTracker.decreaseBalance(chainId, result.usdcAddress as Address, result.usdcAmount);
 
       return {
         success: true,
@@ -173,8 +174,8 @@ export class PoolExecutor {
       // ERC20 token
       return await poolWalletManager.sendERC20(
         chainId,
-        token.address,
-        recipient,
+        token.address as Address,
+        recipient as Address,
         amount,
         token.decimals
       );
@@ -321,7 +322,7 @@ export class PoolExecutor {
       // Direct transfer: decrease balance of token we sent
       await poolBalanceTracker.decreaseBalance(
         params.toChain,
-        params.toToken.address,
+        params.toToken.address as Address,
         params.amount
       );
     } else {
