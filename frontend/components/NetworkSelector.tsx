@@ -1,5 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
-
+import Image from 'next/image';
 import React, { useState, useMemo } from 'react';
 import { Check, ChevronDown, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -152,9 +153,12 @@ export function NetworkSelector({
                   const chainLogo = getChainLogo(selectedChain.id);
                   return chainLogo ? (
                     <div className="relative shrink-0">
-                      <img
+                      <Image
                         src={chainLogo}
                         alt={selectedChain.name}
+                        unoptimized={true}
+                        width={20}
+                        height={20}
                         className="w-5 h-5 rounded-full object-cover"
                         onError={(e) => {
                           e.currentTarget.style.display = 'none';
@@ -183,7 +187,15 @@ export function NetworkSelector({
       <PopoverContent className="w-[400px] p-0" align="start">
         <div className="p-2 border-b">
           {includeTestnets && (
-            <Tabs value={networkType} onValueChange={(v) => setNetworkType(v as 'mainnet' | 'testnet')}>
+            <Tabs 
+              value={networkType} 
+              onValueChange={(v) => {
+                // Prevent infinite loops by only updating if value actually changed
+                if (v !== networkType) {
+                  setNetworkType(v as 'mainnet' | 'testnet');
+                }
+              }}
+            >
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="mainnet">Mainnet</TabsTrigger>
                 <TabsTrigger value="testnet">Testnet</TabsTrigger>
@@ -197,7 +209,13 @@ export function NetworkSelector({
             <input
               placeholder="Search networks..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                // Prevent infinite loops by only updating if value actually changed
+                const newValue = e.target.value;
+                if (newValue !== searchQuery) {
+                  setSearchQuery(newValue);
+                }
+              }}
               className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-black disabled:cursor-not-allowed disabled:opacity-50"
             />
           </div>
@@ -220,9 +238,12 @@ export function NetworkSelector({
                         const chainLogo = getChainLogo(chain.id);
                         return chainLogo ? (
                           <div className="relative shrink-0">
-                            <img
+                            <Image
                               src={chainLogo}
                               alt={chain.name}
+                              unoptimized={true}
+                              width={24}
+                              height={24}
                               className="w-6 h-6 rounded-full object-cover"
                               onError={(e) => {
                                 e.currentTarget.style.display = 'none';

@@ -261,7 +261,7 @@ export function DirectSend({ onComplete, onCancel }: DirectSendProps) {
 
           {/* Message (Optional) */}
           <div>
-            <Label>Message (Optional)</Label>
+            <Label className="mb-4">Message (Optional)</Label>
             <Textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}

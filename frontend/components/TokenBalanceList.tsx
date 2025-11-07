@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import React from 'react';
@@ -113,7 +114,7 @@ export function TokenBalanceList({
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   {/* Token Logo */}
-                  <div className="relative w-10 h-10 rounded-full overflow-hidden bg-muted flex-shrink-0">
+                  <div className="relative w-10 h-10 rounded-full overflow-hidden bg-muted shrink-0">
                     {tokenBalance.token.logoURI ? (
                       <Image
                         src={tokenBalance.token.logoURI}
@@ -123,7 +124,7 @@ export function TokenBalanceList({
                         unoptimized
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600 text-white text-xs font-bold">
+                      <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-blue-500 to-purple-600 text-white text-xs font-bold">
                         {tokenBalance.token.symbol.charAt(0)}
                       </div>
                     )}
@@ -165,7 +166,7 @@ export function TokenBalanceList({
                       size="sm"
                       variant="outline"
                       onClick={() => onTokenSelect && onTokenSelect(tokenBalance)}
-                      className="flex-shrink-0"
+                      className="shrink-0"
                     >
                       <Send className="h-4 w-4" />
                     </Button>

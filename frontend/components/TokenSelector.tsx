@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -111,8 +112,8 @@ export function TokenSelector({
             'w-full justify-between p-4 border-2 rounded-xl transition-all duration-200',
             !selectedToken && 'text-muted-foreground',
             open && isWeb3Theme && 'border-blue-500/50 bg-white/10 shadow-lg shadow-blue-500/20',
-            !open && isWeb3Theme && 'border-white/20 hover:border-white/30 hover:bg-white/10',
-            !isWeb3Theme && 'hover:bg-accent',
+            !open && isWeb3Theme && 'border-white/20 hover:border-white/30 hover:bg-gray-500',
+            !isWeb3Theme && 'hover:bg-gray-500',
             className
           )}
         >
@@ -197,8 +198,8 @@ export function TokenSelector({
               className={cn(
                 'flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50 placeholder:text-black',
                 isWeb3Theme 
-                  ? 'text-white placeholder:text-black' 
-                  : 'placeholder:text-black'
+                  ? 'text-white placeholder:text-white' 
+                  : 'placeholder:text-white'
               )}
             />
           </div>
@@ -232,7 +233,7 @@ export function TokenSelector({
                       className={cn(
                         'cursor-pointer transition-all duration-150',
                         isWeb3Theme && isSelected && 'bg-linear-to-r from-blue-500/20 to-purple-500/20 border-l-2 border-blue-400',
-                        isWeb3Theme && !isSelected && 'hover:bg-white/5 border-l-2 border-transparent',
+                        isWeb3Theme && !isSelected && 'hover:bg-gray-600 border-l-2 border-transparent',
                         isWeb3Theme && 'p-4'
                       )}
                     >

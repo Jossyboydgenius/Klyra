@@ -1,87 +1,108 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { projectId } from '../lib/supabase/info';
-import { CRYPTO_INFO, WITHDRAWAL_METHODS } from '../lib/constants';
-import { formatAmount, formatCryptoAmountDetailed, calculateAssetValue, calculateFeeAmount } from '../lib/helpers';
-import { Card } from './ui/card';
-import { Button } from './ui/button';
+import { CRYPTO_INFO } from '../lib/constants';
+import { formatAmount, calculateAssetValue } from '../lib/helpers';
+import { Web3Container, Web3Card, Web3Button } from './Web3Theme';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { RadioGroup, RadioGroupItem } from './ui/radio-group';
+import { Badge } from './ui/badge';
 import { 
   Wallet, 
   CreditCard, 
   Smartphone, 
   AlertCircle,
-  Info
+  Info,
+  ChevronDown,
+  Loader2,
+  Plus,
+  Check
 } from 'lucide-react';
+import { useAccount } from 'wagmi';
+import { useWalletBalances, TokenBalance } from '@/hooks/useWalletBalances';
+import { getChainLogo } from '@/lib/chain-logos';
+import Image from 'next/image';
 
 interface SellCryptoProps {
   accessToken: string;
   balances: any;
+  paymentMethods: any[];
   onTransactionStart: (transactionId: string) => void;
   onBack: () => void;
+  onNavigate: (screen: string) => void;
 }
 
 export const SellCrypto: React.FC<SellCryptoProps> = ({ 
   accessToken, 
   balances, 
+  paymentMethods,
   onTransactionStart, 
-  onBack 
+  onBack,
+  onNavigate 
 }) => {
-  const [selectedCrypto, setSelectedCrypto] = useState('');
-  const [selectedWithdrawal, setSelectedWithdrawal] = useState('');
+  const { address, isConnected } = useAccount();
+  const { balances: walletBalances, isLoading: isLoadingBalances } = useWalletBalances(address, undefined, true);
+  
+  const [selectedBalance, setSelectedBalance] = useState<TokenBalance | null>(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<any>(null);
   const [cryptoAmount, setCryptoAmount] = useState('');
   const [currency, setCurrency] = useState('GHS');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-
-  const getAvailableCryptos = () => {
-    if (!balances?.crypto) return [];
-    return Object.entries(balances.crypto)
-      .filter(([_, data]: [string, any]) => data.amount > 0)
-      .map(([symbol, data]: [string, any]) => ({
-        symbol,
-        name: CRYPTO_INFO[symbol as keyof typeof CRYPTO_INFO]?.name || symbol,
-        amount: data.amount
-      }));
-  };
+  const [showAssetSelector, setShowAssetSelector] = useState(false);
+  const [showPaymentMethodSelector, setShowPaymentMethodSelector] = useState(false);
 
   const getFiatAmount = () => {
-    if (!cryptoAmount || !selectedCrypto) return 0;
+    if (!cryptoAmount || !selectedBalance) return 0;
     
     const numAmount = parseFloat(cryptoAmount);
-    const cryptoInfo = CRYPTO_INFO[selectedCrypto as keyof typeof CRYPTO_INFO];
+    const cryptoInfo = CRYPTO_INFO[selectedBalance.token.symbol as keyof typeof CRYPTO_INFO];
     
-    return calculateAssetValue(numAmount, selectedCrypto, currency, cryptoInfo);
-  };
-
-  const getSelectedWithdrawalMethod = () => {
-    return WITHDRAWAL_METHODS.find(method => method.id === selectedWithdrawal);
+    return calculateAssetValue(numAmount, selectedBalance.token.symbol, currency, cryptoInfo);
   };
 
   const getSelectedCryptoBalance = () => {
-    if (!selectedCrypto || !balances?.crypto) return 0;
-    return balances.crypto[selectedCrypto]?.amount || 0;
+    if (!selectedBalance) return 0;
+    return parseFloat(selectedBalance.balanceFormatted);
   };
 
   const getFeeAmount = () => {
-    const withdrawalMethod = getSelectedWithdrawalMethod();
-    if (!withdrawalMethod) return 0;
-    
+    // Paystack transfer fee: typically 1% or fixed fee
+    // For simplicity, use 1% for now
     const fiatAmount = getFiatAmount();
-    return calculateFeeAmount(fiatAmount, withdrawalMethod.fee);
+    return fiatAmount * 0.01; // 1% fee
   };
 
   const getNetAmount = () => {
     return getFiatAmount() - getFeeAmount();
   };
 
+  const getPaymentMethodIcon = (type: string) => {
+    switch (type) {
+      case 'momo':
+        return Smartphone;
+      case 'bank':
+      case 'card':
+        return CreditCard;
+      default:
+        return CreditCard;
+    }
+  };
+
+  const getPaymentMethodDisplay = (method: any) => {
+    if (method.type === 'momo') {
+      return `${method.details?.provider || 'Mobile Money'} - ${method.details?.phone || method.name}`;
+    }
+    if (method.type === 'bank') {
+      return `${method.details?.bank_name || 'Bank'} - ${method.details?.account_number?.slice(-4) || method.name}`;
+    }
+    return method.name;
+  };
+
   const handleSell = async () => {
-    if (!selectedCrypto || !selectedWithdrawal || !cryptoAmount) {
+    if (!selectedBalance || !selectedPaymentMethod || !cryptoAmount) {
       setError('Please fill in all fields');
       return;
     }
@@ -103,23 +124,27 @@ export const SellCrypto: React.FC<SellCryptoProps> = ({
     setError('');
 
     try {
-      const response = await fetch(`https://${projectId}.supabase.co/functions/v1/${process.env.NEXT_PUBLIC_SUPABASE_FUNCTION_NAME}/crypto/sell`, {
+      const response = await fetch(`/api/paystack/sell`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           crypto_amount: numAmount,
-          crypto_symbol: selectedCrypto,
-          currency,
-          withdrawal_method: selectedWithdrawal
+          crypto_symbol: selectedBalance.token.symbol,
+          token_address: selectedBalance.token.address,
+          chain_id: selectedBalance.chain.id,
+          network: selectedBalance.chain.name,
+          fiat_currency: currency,
+          fiat_amount: getNetAmount(),
+          payment_method_id: selectedPaymentMethod.id,
+          payment_method_type: selectedPaymentMethod.type,
+          payment_method_details: selectedPaymentMethod.details,
+          user_wallet_address: address
         })
       });
 
       const data = await response.json();
 
-      if (response.ok) {
+      if (data.success) {
         onTransactionStart(data.transaction_id);
       } else {
         setError(data.error || 'Sale failed');
@@ -132,128 +157,206 @@ export const SellCrypto: React.FC<SellCryptoProps> = ({
     }
   };
 
-  const availableCryptos = getAvailableCryptos();
-
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-md mx-auto space-y-6">
+    <Web3Container>
+      <div className="max-w-md mx-auto space-y-6 px-4 py-6">
         {/* Header */}
         <div className="text-center">
-          <h1 className="text-2xl font-semibold text-gray-900 mb-2">Sell Cryptocurrency</h1>
-          <p className="text-gray-600">Withdraw crypto to your traditional finance accounts</p>
+          <h1 className="text-2xl font-semibold text-white mb-2">Sell Cryptocurrency</h1>
+          <p className="text-indigo-200/80">Withdraw crypto to your traditional finance accounts</p>
         </div>
 
         {/* Currency Toggle */}
-        <Card className="p-4">
+        <Web3Card className="p-4">
           <div className="flex items-center justify-between">
-            <Label>Receive Currency</Label>
-            <div className="flex rounded-lg border overflow-hidden">
+            <Label className="text-white">Receive Currency</Label>
+            <div className="flex rounded-lg border border-indigo-400/30 overflow-hidden">
               <button
-                className={`px-3 py-1 text-sm ${currency === 'GHS' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'}`}
+                className={`px-3 py-1 text-sm transition-colors ${currency === 'GHS' ? 'bg-indigo-600 text-white' : 'bg-white/10 text-indigo-200'}`}
                 onClick={() => setCurrency('GHS')}
               >
                 GHS
               </button>
               <button
-                className={`px-3 py-1 text-sm ${currency === 'USD' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'}`}
+                className={`px-3 py-1 text-sm transition-colors ${currency === 'USD' ? 'bg-indigo-600 text-white' : 'bg-white/10 text-indigo-200'}`}
                 onClick={() => setCurrency('USD')}
               >
                 USD
               </button>
             </div>
           </div>
-        </Card>
+        </Web3Card>
 
-        {/* Available Balance Warning */}
-        {availableCryptos.length === 0 && (
-          <Card className="p-6 text-center">
-            <Wallet className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-            <p className="text-gray-500 mb-3">No crypto assets available for sale</p>
-            <Button variant="outline" onClick={onBack}>
-              Buy Crypto First
-            </Button>
-          </Card>
+        {/* Wallet Not Connected or Loading */}
+        {(!isConnected || isLoadingBalances) && (
+          <Web3Card className="p-6 text-center">
+            <Loader2 className="w-12 h-12 text-indigo-400 mx-auto mb-3 animate-spin" />
+            <p className="text-indigo-200/80 mb-3">
+              {!isConnected ? 'Connect your wallet to sell crypto' : 'Loading your balances...'}
+            </p>
+          </Web3Card>
         )}
 
-        {availableCryptos.length > 0 && (
+        {/* No Balances */}
+        {isConnected && !isLoadingBalances && (!walletBalances || walletBalances.length === 0) && (
+          <Web3Card className="p-6 text-center">
+            <Wallet className="w-12 h-12 text-indigo-200/70 mx-auto mb-3" />
+            <p className="text-indigo-200/80 mb-3">No crypto assets available for sale</p>
+            <Web3Button onClick={() => onNavigate('buy')}>
+              Buy Crypto First
+            </Web3Button>
+          </Web3Card>
+        )}
+
+        {/* No Payment Methods */}
+        {isConnected && !isLoadingBalances && walletBalances && walletBalances.length > 0 && (!paymentMethods || paymentMethods.length === 0) && (
+          <Web3Card className="p-6 text-center">
+            <CreditCard className="w-12 h-12 text-indigo-200/70 mx-auto mb-3" />
+            <p className="text-indigo-200/80 mb-3">No payment methods configured</p>
+            <p className="text-sm text-indigo-300/70 mb-4">Add a mobile money or bank account to receive funds</p>
+            <Web3Button onClick={() => onNavigate('payment-methods')}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Payment Method
+            </Web3Button>
+          </Web3Card>
+        )}
+
+        {isConnected && !isLoadingBalances && walletBalances && walletBalances.length > 0 && paymentMethods && paymentMethods.length > 0 && (
           <>
-            {/* Cryptocurrency Selection */}
-            <Card className="p-6">
+            {/* Asset Selection - Show individual chain balances */}
+            <Web3Card className="p-6">
               <div>
-                <Label>Select Cryptocurrency to Sell</Label>
-                <Select value={selectedCrypto} onValueChange={setSelectedCrypto}>
-                  <SelectTrigger className="mt-2">
-                    <SelectValue placeholder="Choose cryptocurrency to sell" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableCryptos.map((crypto) => (
-                      <SelectItem key={crypto.symbol} value={crypto.symbol}>
-                        <div className="flex items-center justify-between w-full">
-                          <span>{crypto.name} ({crypto.symbol})</span>
-                          <span className="text-sm text-gray-500 ml-2">
-                            Balance: {crypto.amount.toFixed(6)}
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label className="text-white">Select Asset to Sell</Label>
+                <button
+                  onClick={() => setShowAssetSelector(!showAssetSelector)}
+                  className="mt-2 w-full flex items-center justify-between px-4 py-3 bg-white/10 rounded-lg border border-indigo-400/30 hover:bg-white/20 transition-colors"
+                >
+                  {selectedBalance ? (
+                    <div className="flex items-center gap-3">
+                      {(() => {
+                        const logoUrl = getChainLogo(selectedBalance.chain.id, selectedBalance.chain.testnet);
+                        return logoUrl ? (
+                          <Image 
+                            src={logoUrl} 
+                            alt={selectedBalance.chain.name} 
+                            className="w-6 h-6 rounded-full"
+                            width={24}
+                            height={24}
+                            unoptimized={true}
+                          />
+                        ) : (
+                          <div className="w-6 h-6 rounded-full bg-linear-to-br from-blue-500 to-purple-600" />
+                        );
+                      })()}
+                      <span className="text-white font-medium">
+                        {parseFloat(selectedBalance.balanceFormatted).toFixed(6)} {selectedBalance.token.symbol} on {selectedBalance.chain.name}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-indigo-200/70">Choose asset and chain</span>
+                  )}
+                  <ChevronDown className={`w-4 h-4 text-white transition-transform ${showAssetSelector ? 'rotate-180' : ''}`} />
+                </button>
+
+                {showAssetSelector && (
+                  <div className="mt-2 space-y-2 max-h-64 overflow-y-auto">
+                    {walletBalances.map((balance, index) => {
+                      const logoUrl = getChainLogo(balance.chain.id, balance.chain.testnet);
+                      return (
+                        <button
+                          key={`${balance.chain.id}-${balance.token.address}-${index}`}
+                          onClick={() => {
+                            setSelectedBalance(balance);
+                            setShowAssetSelector(false);
+                          }}
+                          className="w-full flex items-center justify-between px-4 py-3 bg-white/5 rounded-lg border border-indigo-400/20 hover:bg-white/10 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            {logoUrl ? (
+                              <div className="relative">
+                                <Image 
+                                  src={logoUrl} 
+                                  alt={balance.chain.name} 
+                                  className="w-8 h-8 rounded-full"
+                                  width={32}
+                                  height={32}
+                                  unoptimized={true}
+                                />
+                                {balance.chain.testnet && (
+                                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full border border-slate-900" />
+                                )}
+                              </div>
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                                <span className="text-white text-xs font-bold">{balance.token.symbol.slice(0, 2)}</span>
+                              </div>
+                            )}
+                            <div className="text-left">
+                              <p className="text-white font-medium">{balance.token.symbol}</p>
+                              <p className="text-xs text-indigo-200/70">{balance.chain.name}</p>
+                            </div>
+                          </div>
+                          <p className="text-white font-semibold">
+                            {parseFloat(balance.balanceFormatted).toFixed(6)}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
-              {selectedCrypto && (
-                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+              {selectedBalance && (
+                <div className="mt-4 p-3 bg-blue-600/20 rounded-lg border border-blue-400/30">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Available Balance</span>
+                    <span className="text-sm text-indigo-200/80">Available Balance</span>
                     <div className="text-right">
-                      <p className="font-semibold text-gray-900">
-                        {getSelectedCryptoBalance().toFixed(6)} {selectedCrypto}
+                      <p className="font-semibold text-white">
+                        {getSelectedCryptoBalance().toFixed(6)} {selectedBalance.token.symbol}
                       </p>
-                      <p className="text-xs text-gray-500">
-                        ≈ {formatAmount(calculateAssetValue(getSelectedCryptoBalance(), selectedCrypto, 'GHS', CRYPTO_INFO[selectedCrypto as keyof typeof CRYPTO_INFO]), 'GHS')}
-                      </p>
+                      <p className="text-xs text-indigo-200/70">on {selectedBalance.chain.name}</p>
                     </div>
                   </div>
                 </div>
               )}
-            </Card>
+            </Web3Card>
 
             {/* Amount Input */}
-            <Card className="p-6">
+            <Web3Card className="p-6">
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="crypto-amount">Amount to Sell</Label>
-                  <div className="relative">
+                  <Label htmlFor="crypto-amount" className="text-white">Amount to Sell</Label>
+                  <div className="relative mt-2">
                     <Input
                       id="crypto-amount"
                       type="number"
                       placeholder="0.000000"
                       value={cryptoAmount}
                       onChange={(e) => setCryptoAmount(e.target.value)}
-                      className="text-2xl py-6 pr-20"
+                      className="text-2xl py-6 pr-24 bg-white/10 border-indigo-400/30 text-white placeholder:text-indigo-200/50"
                       step="0.000001"
                       max={getSelectedCryptoBalance()}
                     />
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium">
-                      {selectedCrypto || 'CRYPTO'}
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-indigo-200/80 font-medium">
+                      {selectedBalance?.token.symbol || 'CRYPTO'}
                     </div>
                   </div>
                 </div>
 
                 {/* Quick Amount Buttons */}
-                {selectedCrypto && (
+                {selectedBalance && (
                   <div className="grid grid-cols-4 gap-2">
                     {[25, 50, 75, 100].map((percentage) => {
                       const amount = (getSelectedCryptoBalance() * percentage) / 100;
                       return (
-                        <Button
+                        <Web3Button
                           key={percentage}
-                          variant="outline"
-                          size="sm"
+                          variant="secondary"
                           onClick={() => setCryptoAmount(amount.toFixed(6))}
-                          className="text-xs"
+                          className="text-xs h-auto py-2"
                         >
                           {percentage}%
-                        </Button>
+                        </Web3Button>
                       );
                     })}
                   </div>
@@ -261,105 +364,146 @@ export const SellCrypto: React.FC<SellCryptoProps> = ({
               </div>
 
               {/* Conversion Preview */}
-              {selectedCrypto && cryptoAmount && (
-                <div className="mt-4 p-3 bg-green-50 rounded-lg">
+              {selectedBalance && cryptoAmount && (
+                <div className="mt-4 p-3 bg-green-600/20 rounded-lg border border-green-400/30">
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Gross Amount</span>
-                      <span className="font-semibold text-gray-900">
+                      <span className="text-sm text-indigo-200/80">Gross Amount</span>
+                      <span className="font-semibold text-white">
                         {formatAmount(getFiatAmount(), currency)}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Network Fee</span>
-                      <span className="text-gray-900">
+                      <span className="text-sm text-indigo-200/80">Processing Fee (1%)</span>
+                      <span className="text-white">
                         -{formatAmount(getFeeAmount(), currency)}
                       </span>
                     </div>
-                    <hr className="border-gray-200" />
+                    <hr className="border-indigo-400/30" />
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-900">Net Amount</span>
-                      <span className="font-bold text-green-600">
+                      <span className="text-sm font-medium text-white">You Receive</span>
+                      <span className="font-bold text-green-400">
                         {formatAmount(getNetAmount(), currency)}
                       </span>
                     </div>
                   </div>
                 </div>
               )}
-            </Card>
+            </Web3Card>
 
-            {/* Withdrawal Method */}
-            <Card className="p-6">
+            {/* Payment Method Selection - Use real user payment methods */}
+            <Web3Card className="p-6">
               <div>
-                <Label>Withdrawal Method</Label>
-                <RadioGroup value={selectedWithdrawal} onValueChange={setSelectedWithdrawal} className="mt-3">
-                  {WITHDRAWAL_METHODS.map((method) => {
-                    const IconComponent = method.icon === 'Smartphone' ? Smartphone : CreditCard;
-                    return (
-                      <div key={method.id} className="flex items-center space-x-3">
-                        <RadioGroupItem value={method.id} id={method.id} />
-                        <label
-                          htmlFor={method.id}
-                          className="flex-1 flex items-center justify-between cursor-pointer p-3 rounded-lg border hover:bg-gray-50"
+                <Label className="text-white">Receive Funds Via</Label>
+                <button
+                  onClick={() => setShowPaymentMethodSelector(!showPaymentMethodSelector)}
+                  className="mt-2 w-full flex items-center justify-between px-4 py-3 bg-white/10 rounded-lg border border-indigo-400/30 hover:bg-white/20 transition-colors"
+                >
+                  {selectedPaymentMethod ? (
+                    <div className="flex items-center gap-3">
+                      {(() => {
+                        const IconComponent = getPaymentMethodIcon(selectedPaymentMethod.type);
+                        return <IconComponent className="w-5 h-5 text-indigo-200" />;
+                      })()}
+                      <span className="text-white font-medium">
+                        {getPaymentMethodDisplay(selectedPaymentMethod)}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-indigo-200/70">Choose payment method</span>
+                  )}
+                  <ChevronDown className={`w-4 h-4 text-white transition-transform ${showPaymentMethodSelector ? 'rotate-180' : ''}`} />
+                </button>
+
+                {showPaymentMethodSelector && (
+                  <div className="mt-2 space-y-2 max-h-64 overflow-y-auto">
+                    {paymentMethods.map((method) => {
+                      const IconComponent = getPaymentMethodIcon(method.type);
+                      const isSelected = selectedPaymentMethod?.id === method.id;
+                      return (
+                        <button
+                          key={method.id}
+                          onClick={() => {
+                            setSelectedPaymentMethod(method);
+                            setShowPaymentMethodSelector(false);
+                          }}
+                          className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all ${
+                            isSelected 
+                              ? 'bg-indigo-600/30 border-indigo-400' 
+                              : 'bg-white/5 border-indigo-400/20 hover:bg-white/10'
+                          }`}
                         >
                           <div className="flex items-center gap-3">
-                            <div className="bg-gray-100 rounded-full p-2">
-                              <IconComponent className="w-5 h-5 text-gray-600" />
+                            <div className={`rounded-full p-2 ${isSelected ? 'bg-indigo-600' : 'bg-white/10'}`}>
+                              <IconComponent className={`w-5 h-5 ${isSelected ? 'text-white' : 'text-indigo-200'}`} />
                             </div>
-                            <div>
-                              <p className="font-medium text-gray-900">{method.name}</p>
-                              <p className="text-sm text-gray-600">{method.description}</p>
+                            <div className="text-left">
+                              <p className="font-medium text-white">{method.name}</p>
+                              <p className="text-sm text-indigo-200/70">{getPaymentMethodDisplay(method)}</p>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <p className="text-sm font-medium text-gray-900">Fee: {method.fee}</p>
-                            <p className="text-xs text-gray-500">{method.processing_time}</p>
-                          </div>
-                        </label>
-                      </div>
-                    );
-                  })}
-                </RadioGroup>
+                          {method.is_verified && (
+                            <Badge className="bg-green-400/20 text-green-400 border-green-400/30">
+                              <Check className="w-3 h-3 mr-1" />
+                              Verified
+                            </Badge>
+                          )}
+                        </button>
+                      );
+                    })}
+                    <button
+                      onClick={() => {
+                        setShowPaymentMethodSelector(false);
+                        onNavigate('payment-methods');
+                      }}
+                      className="w-full flex items-center justify-center gap-2 p-3 rounded-lg border border-dashed border-indigo-400/30 hover:bg-white/10 transition-colors"
+                    >
+                      <Plus className="w-4 h-4 text-indigo-200" />
+                      <span className="text-indigo-200">Add New Payment Method</span>
+                    </button>
+                  </div>
+                )}
               </div>
-            </Card>
+            </Web3Card>
 
             {/* Important Notice */}
-            <Card className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
+            <Web3Card className="p-4 bg-amber-600/20 border-amber-400/30">
               <div className="flex items-start gap-3">
-                <Info className="w-5 h-5 text-amber-600 mt-0.5" />
+                <Info className="w-5 h-5 text-amber-400 mt-0.5" />
                 <div>
-                  <p className="font-medium text-amber-900 mb-1">Processing Time</p>
-                  <p className="text-sm text-amber-700">
+                  <p className="font-medium text-white mb-1">Processing Time</p>
+                  <p className="text-sm text-indigo-200/80">
                     Crypto sales are processed instantly but withdrawal to your traditional account may take time based on your selected method.
                   </p>
                 </div>
               </div>
-            </Card>
+            </Web3Card>
 
             {/* Error Message */}
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg flex items-start gap-2">
-                <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                <span className="text-sm">{error}</span>
-              </div>
+              <Web3Card className="p-4 bg-red-600/20 border-red-400/30">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 shrink-0" />
+                  <span className="text-sm text-red-200">{error}</span>
+                </div>
+              </Web3Card>
             )}
 
             {/* Sell Button */}
-            <Button
+            <Web3Button
               onClick={handleSell}
-              disabled={isLoading || !selectedCrypto || !selectedWithdrawal || !cryptoAmount}
-              className="w-full h-12"
-              variant="destructive"
+              disabled={isLoading || !selectedBalance || !selectedPaymentMethod || !cryptoAmount}
+              className="w-full h-12 bg-red-600 hover:bg-red-700"
             >
-              {isLoading ? 'Processing...' : `Sell ${selectedCrypto || 'Crypto'}`}
-            </Button>
+              {isLoading ? 'Processing...' : `Sell ${selectedBalance?.token.symbol || 'Crypto'}`}
+            </Web3Button>
           </>
         )}
 
-        <p className="text-center text-xs text-gray-500">
+        <p className="text-center text-xs text-indigo-200/60">
           Transactions are secured with bank-level encryption
         </p>
       </div>
-    </div>
+    </Web3Container>
   );
 };

@@ -276,7 +276,7 @@ export default function PaymentPage() {
 
               {/* Optional Message */}
               <div>
-                <Label>Message (Optional)</Label>
+                <Label className="mb-4">Message (Optional)</Label>
                 <Textarea
                   placeholder="Add a note..."
                   value={message}

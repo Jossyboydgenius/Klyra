@@ -20,6 +20,8 @@ import { useAccount } from 'wagmi';
 import { useWalletBalances } from '@/hooks/useWalletBalances';
 import { getChainLogo } from '@/lib/chain-logos';
 import { CRYPTO_INFO } from '@/lib/constants';
+import Image from 'next/image';
+
 
 interface CryptoWalletProps {
   balances: any;
@@ -44,11 +46,21 @@ export const CryptoWallet: React.FC<CryptoWalletProps> = ({ balances, onAssetSel
   const [includeTestnets, setIncludeTestnets] = useState(false);
   const { address, isConnected } = useAccount();
   
-  // Get real wallet balances
-  const { balances: walletBalances, isLoading: isLoadingBalances } = useWalletBalances(
+  // Get real wallet balances with enhanced features (show all balances, not limited)
+  const { 
+    balances: walletBalances, 
+    isLoading: isLoadingBalances,
+    refresh: refreshBalances,
+    hasMore 
+  } = useWalletBalances(
     address,
     undefined,
-    includeTestnets
+    includeTestnets,
+    {
+      autoRefresh: true,
+      refreshInterval: 20000, // 20 seconds
+      onlyNonZero: true, // Only show tokens with balance
+    }
   );
 
   const formatAmount = (amount: number, currency: string) => {
@@ -146,7 +158,7 @@ export const CryptoWallet: React.FC<CryptoWalletProps> = ({ balances, onAssetSel
     <Web3Container>
       <div className="max-w-md mx-auto space-y-6">
         {/* Portfolio Summary */}
-        <Web3Card className="bg-gradient-to-r from-purple-600/30 to-blue-600/30 border-purple-500/30">
+        <Web3Card className="bg-linear-to-r from-purple-600/30 to-blue-600/30 border-purple-500/30">
           <div className="flex items-center justify-between mb-4">
             <div>
               <p className="text-indigo-200/80 text-sm">Total Portfolio Value</p>
@@ -173,8 +185,10 @@ export const CryptoWallet: React.FC<CryptoWalletProps> = ({ balances, onAssetSel
                 variant="ghost"
                 className="text-white hover:bg-white/10 p-1 block ml-auto"
                 icon
+                onClick={refreshBalances}
+                disabled={isLoadingBalances}
               >
-                <RefreshCw className="w-4 h-4" />
+                <RefreshCw className={`w-4 h-4 ${isLoadingBalances ? 'animate-spin' : ''}`} />
               </Web3Button>
             </div>
           </div>
@@ -191,7 +205,7 @@ export const CryptoWallet: React.FC<CryptoWalletProps> = ({ balances, onAssetSel
         </Web3Card>
 
         {/* Universal Wallet Info */}
-        <Web3Card className="bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border-indigo-400/30">
+        <Web3Card className="bg-linear-to-r from-indigo-500/20 to-purple-500/20 border-indigo-400/30">
           <div className="flex items-start justify-between">
             <div className="flex items-start gap-3 flex-1">
               <Network className="w-5 h-5 text-indigo-300 mt-0.5" />
@@ -232,7 +246,7 @@ export const CryptoWallet: React.FC<CryptoWalletProps> = ({ balances, onAssetSel
               <Wallet className="w-12 h-12 text-indigo-200/70 mx-auto mb-3" />
               <p className="text-indigo-200/70 mb-3">Connect your wallet to view your assets</p>
             </Web3Card>
-          ) : isLoadingBalances ? (
+          ) : allAssets.length === 0 && isLoadingBalances ? (
             <Web3Card className="p-6 text-center">
               <Loader2 className="w-8 h-8 text-indigo-400 mx-auto mb-3 animate-spin" />
               <p className="text-indigo-200/70">Loading wallet balances...</p>
@@ -254,24 +268,36 @@ export const CryptoWallet: React.FC<CryptoWalletProps> = ({ balances, onAssetSel
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    {asset.chainId ? (
-                      <div className="relative">
-                        <img 
-                          src={getChainLogo(asset.chainId, asset.chain?.testnet) || ''} 
-                          alt={asset.chain}
-                          className="w-12 h-12 rounded-full object-cover"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                        {asset.chain?.testnet && (
-                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full border-2 border-slate-900 flex items-center justify-center">
-                            <span className="text-[8px] text-white font-bold">T</span>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                    {asset.chainId ? (() => {
+                      const logoUrl = getChainLogo(asset.chainId, asset.chain?.testnet);
+                      return (
+                        <div className="relative">
+                          {logoUrl ? (
+                            <Image 
+                              src={logoUrl} 
+                              alt={asset.chain}
+                              unoptimized={true}
+                              width={48}
+                              height={48}
+                              className="w-12 h-12 rounded-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-full bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                              <Wallet className="w-6 h-6 text-white" />
+                            </div>
+                          )}
+                          {asset.chain?.testnet && (
+                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full border-2 border-slate-900 flex items-center justify-center">
+                              <span className="text-[8px] text-white font-bold">T</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })() : (
+                      <div className="w-12 h-12 rounded-full bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center">
                         <Wallet className="w-6 h-6 text-white" />
                       </div>
                     )}

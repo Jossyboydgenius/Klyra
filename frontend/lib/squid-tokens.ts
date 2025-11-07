@@ -97,34 +97,65 @@ export async function getSquidTokens(isTestnet: boolean = true): Promise<Map<num
 
   try {
     const apiUrl = isTestnet ? SQUID_TESTNET_API : SQUID_MAINNET_API;
-    const response = await fetch(`${apiUrl}/tokens`);
     
-    if (!response.ok) {
-      throw new Error(`Squid API error: ${response.status}`);
-    }
-
-    const data = await response.json();
+    // Add timeout to prevent hanging
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
     
-    if (data.status && data.data?.tokens) {
-      // Group tokens by chainId
-      const tokensByChain = new Map<number, SquidToken[]>();
-      
-      data.data.tokens.forEach((token: SquidToken) => {
-        if (!tokensByChain.has(token.chainId)) {
-          tokensByChain.set(token.chainId, []);
-        }
-        tokensByChain.get(token.chainId)!.push(token);
+    try {
+      const response = await fetch(`${apiUrl}/tokens`, {
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json',
+        },
       });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`Squid API error: ${response.status}`);
+      }
 
-      tokensCache = tokensByChain;
-      cacheTimestamp = now;
-      return tokensCache;
+      const data = await response.json();
+      
+      if (data.status && data.data?.tokens) {
+        // Group tokens by chainId
+        const tokensByChain = new Map<number, SquidToken[]>();
+        
+        data.data.tokens.forEach((token: SquidToken) => {
+          if (!tokensByChain.has(token.chainId)) {
+            tokensByChain.set(token.chainId, []);
+          }
+          tokensByChain.get(token.chainId)!.push(token);
+        });
+
+        tokensCache = tokensByChain;
+        cacheTimestamp = now;
+        return tokensCache;
+      }
+
+      return new Map();
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      
+      // Handle abort (timeout)
+      if (fetchError.name === 'AbortError') {
+        console.warn('Squid API request timed out');
+        throw new Error('Request timeout');
+      }
+      
+      // Handle network errors
+      if (fetchError instanceof TypeError && fetchError.message === 'Failed to fetch') {
+        console.warn('Squid API network error - API may be unreachable');
+        throw new Error('Network error');
+      }
+      
+      throw fetchError;
     }
-
-    return new Map();
-  } catch (error) {
-    console.error('Error fetching Squid tokens:', error);
-    // Return cached data if available, even if expired
+  } catch (error: any) {
+    // Log error but don't break the app
+    console.warn('Error fetching Squid tokens:', error?.message || error);
+    // Return cached data if available, even if expired, or empty map
     return tokensCache || new Map();
   }
 }
@@ -133,8 +164,14 @@ export async function getSquidTokens(isTestnet: boolean = true): Promise<Map<num
  * Get tokens for a specific chain from Squid
  */
 export async function getSquidTokensForChain(chainId: number, isTestnet: boolean = true): Promise<SquidToken[]> {
-  const allTokens = await getSquidTokens(isTestnet);
-  return allTokens.get(chainId) || [];
+  try {
+    const allTokens = await getSquidTokens(isTestnet);
+    return allTokens.get(chainId) || [];
+  } catch (error) {
+    // Silently fail - return empty array so component continues to work
+    console.warn(`Failed to get Squid tokens for chain ${chainId}:`, error);
+    return [];
+  }
 }
 
 /**

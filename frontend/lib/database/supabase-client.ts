@@ -15,6 +15,7 @@ export interface Transaction {
   user_email: string;
   user_phone: string;
   user_wallet_address: string;
+  recipient_wallet_address?: string;
   paystack_reference: string;
   paystack_access_code?: string;
   fiat_amount: number;
@@ -230,6 +231,81 @@ export class TransactionService {
     }
 
     return this.updateTransaction(id, updates);
+  }
+
+  /**
+   * Get transactions by user wallet address
+   */
+  async getTransactionsByWallet(walletAddress: string, limit?: number): Promise<Transaction[]> {
+    try {
+      let query = supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_wallet_address', walletAddress.toLowerCase())
+        .order('created_at', { ascending: false });
+
+      if (limit) {
+        query = query.limit(limit);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error getting transactions by wallet:', error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error: any) {
+      // Re-throw with more context for logging
+      console.error('Database error in getTransactionsByWallet:', {
+        code: error?.code,
+        message: error?.message,
+        details: error?.details,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Get transactions by user email
+   */
+  async getTransactionsByEmail(email: string, limit?: number): Promise<Transaction[]> {
+    try {
+      let query = supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_email', email.toLowerCase())
+        .order('created_at', { ascending: false });
+
+      if (limit) {
+        query = query.limit(limit);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error getting transactions by email:', error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error: any) {
+      // Re-throw with more context for logging
+      console.error('Database error in getTransactionsByEmail:', {
+        code: error?.code,
+        message: error?.message,
+        details: error?.details,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Get a single transaction by ID
+   */
+  async getTransaction(id: string): Promise<Transaction | null> {
+    return this.getTransactionById(id);
   }
 }
 

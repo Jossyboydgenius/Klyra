@@ -18,7 +18,7 @@ export function WalletBalanceList({ onSelectToken }: WalletBalanceListProps) {
   
   const { balances, isLoading, isEmpty } = useWalletBalances(
     address,
-    undefined, // All chains
+    undefined,
     includeTestnets
   );
 
@@ -33,7 +33,6 @@ export function WalletBalanceList({ onSelectToken }: WalletBalanceListProps) {
 
   return (
     <div className="space-y-4">
-      {/* Header with Testnet Toggle */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-white">Wallet Balances</h2>
@@ -54,7 +53,6 @@ export function WalletBalanceList({ onSelectToken }: WalletBalanceListProps) {
         </button>
       </div>
 
-      {/* Loading State */}
       {isLoading && (
         <Web3Card className="p-6 text-center">
           <Loader2 className="w-8 h-8 mx-auto mb-4 animate-spin text-indigo-400" />
@@ -62,7 +60,6 @@ export function WalletBalanceList({ onSelectToken }: WalletBalanceListProps) {
         </Web3Card>
       )}
 
-      {/* Empty State */}
       {!isLoading && isEmpty && (
         <Web3Card className="p-6 text-center">
           <Wallet className="w-12 h-12 mx-auto mb-4 text-indigo-400/50" />
@@ -73,7 +70,6 @@ export function WalletBalanceList({ onSelectToken }: WalletBalanceListProps) {
         </Web3Card>
       )}
 
-      {/* Balance List */}
       {!isLoading && !isEmpty && (
         <div className="space-y-2">
           {balances.map((balance, index) => {
@@ -88,13 +84,15 @@ export function WalletBalanceList({ onSelectToken }: WalletBalanceListProps) {
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    {/* Chain Logo */}
                     {chainLogo ? (
                       <div className="relative shrink-0">
-                        <img
+                        <Image
                           src={chainLogo}
                           alt={balance.chain.name}
                           className="w-8 h-8 rounded-full object-cover"
+                          width={32}
+                          height={32}
+                          unoptimized={true}
                           onError={(e) => {
                             e.currentTarget.style.display = 'none';
                           }}
@@ -111,7 +109,6 @@ export function WalletBalanceList({ onSelectToken }: WalletBalanceListProps) {
                       }`} />
                     )}
                     
-                    {/* Token Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-white truncate">
@@ -126,7 +123,6 @@ export function WalletBalanceList({ onSelectToken }: WalletBalanceListProps) {
                       </div>
                     </div>
                     
-                    {/* Balance */}
                     <div className="text-right shrink-0">
                       <div className="font-medium text-white">
                         {parseFloat(balance.balanceFormatted).toFixed(8)}

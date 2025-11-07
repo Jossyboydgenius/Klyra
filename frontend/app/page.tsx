@@ -18,9 +18,12 @@ import { CryptoWallet } from '../components/CryptoWallet';
 import { AssetDetails } from '../components/AssetDetails';
 import { ProcessingScreen } from '../components/ProcessingScreen';
 import { NetworkTokenAdder } from '../components/NetworkTokenAdder';
+import { TransactionsList } from '../components/TransactionsList';
+import { TransactionDetails } from '../components/TransactionDetails';
 import { Button } from '../components/ui/button';
 import { ArrowLeft, User, LogOut, ChevronDown, Wallet, Settings } from 'lucide-react';
 import { useAccount, useDisconnect } from 'wagmi';
+import { Transaction } from '@/lib/database/supabase-client';
 
 const supabase = createClient(
   `https://${projectId}.supabase.co`,
@@ -52,6 +55,7 @@ const App: React.FC = () => {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
   const [transactionId, setTransactionId] = useState<string | null>(null);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const userDropdownRef = useRef<HTMLDivElement>(null);
@@ -166,7 +170,9 @@ const App: React.FC = () => {
       'wallet': 'Crypto Wallet',
       'asset-details': 'Asset Details',
       'processing': 'Processing Transaction',
-      'add-network-token': 'Add Network/Token'
+      'add-network-token': 'Add Network/Token',
+      'transactions': 'Transactions',
+      'transaction-details': 'Transaction Details'
     };
     return titles[currentScreen] || 'Paymaster';
   };
@@ -335,11 +341,13 @@ const App: React.FC = () => {
               <SellCrypto
                 accessToken={accessToken!}
                 balances={balances}
+                paymentMethods={paymentMethods}
                 onTransactionStart={(txId: string) => {
                   setTransactionId(txId);
                   setCurrentScreen('processing');
                 }}
                 onBack={() => setCurrentScreen('dashboard')}
+                onNavigate={setCurrentScreen}
               />
             )}
 
@@ -347,11 +355,13 @@ const App: React.FC = () => {
               <SendCrypto
                 accessToken={accessToken!}
                 balances={balances}
+                paymentMethods={paymentMethods}
                 onSuccess={() => {
                   refreshUserData();
                   setCurrentScreen('wallet');
                 }}
                 onBack={() => setCurrentScreen('dashboard')}
+                onNavigate={setCurrentScreen}
               />
             )}
 
@@ -388,6 +398,29 @@ const App: React.FC = () => {
               <NetworkTokenAdder
                 onBack={() => setCurrentScreen('dashboard')}
               />
+            )}
+
+            {currentScreen === 'transactions' && (
+              <div className="p-4">
+                <TransactionsList
+                  onSelectTransaction={(transaction) => {
+                    setSelectedTransaction(transaction);
+                    setCurrentScreen('transaction-details');
+                  }}
+                />
+              </div>
+            )}
+
+            {currentScreen === 'transaction-details' && (selectedTransaction?.id || transactionId) && (
+              <div className="p-4">
+                <TransactionDetails
+                  transactionId={selectedTransaction?.id || transactionId || ''}
+                  onBack={() => {
+                    setSelectedTransaction(null);
+                    setCurrentScreen('transactions');
+                  }}
+                />
+              </div>
             )}
           </div>
         </>

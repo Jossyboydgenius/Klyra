@@ -22,13 +22,15 @@ import {
   Link2,
   CircleCheck,
   CircleX,
-  Clock
+  Clock,
+  History
 } from 'lucide-react';
 import { WalletConnect } from './WalletConnect';
 import { useAccount } from 'wagmi';
 import { useRouter } from 'next/navigation';
 import { useWalletBalances } from '@/hooks/useWalletBalances';
 import { getChainLogo } from '@/lib/chain-logos';
+import Image from 'next/image';
 
 interface DashboardProps {
   user: any;
@@ -51,14 +53,28 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const { address, isConnected } = useAccount();
   const router = useRouter();
   
-  // Get real wallet balances
-  const { balances: walletBalances, isLoading: isLoadingBalances } = useWalletBalances(
+  // Get real wallet balances with enhanced features
+  const { 
+    balances: walletBalances, 
+    initialBalances,
+    isLoading: isLoadingBalances,
+    refresh: refreshBalances,
+    hasMore 
+  } = useWalletBalances(
     address,
     undefined,
-    includeTestnets
+    includeTestnets,
+    {
+      autoRefresh: true,
+      refreshInterval: 20000, // 20 seconds
+      onlyNonZero: true,
+    }
   );
 
-  // Calculate total value from real wallet balances
+  // Use initial balances for dashboard display (limited)
+  const displayBalances = initialBalances || [];
+
+  // Calculate total value from real wallet balances (use all balances for total, not just displayed)
   const getTotalCryptoValue = () => {
     if (!isConnected || !walletBalances || walletBalances.length === 0) {
       // Fallback to dummy data if wallet not connected
@@ -94,34 +110,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
     if (!showBalances) return '••••••';
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
     return `${numAmount.toFixed(6)} ${symbol}`;
-  };
-
-  // Get active assets from real wallet balances or fallback to dummy data
-  const getActiveCryptoAssets = () => {
-    if (isConnected && walletBalances && walletBalances.length > 0) {
-      // Return real wallet balances
-      return walletBalances.map((balance) => ({
-        symbol: balance.token.symbol,
-        chain: balance.chain.name,
-        chainId: balance.chain.id,
-        amount: parseFloat(balance.balanceFormatted),
-        balanceFormatted: balance.balanceFormatted,
-        token: balance.token,
-      }));
-    }
-    
-    // Fallback to dummy data
-    if (!balances?.crypto) return [];
-    return Object.entries(balances.crypto)
-      .filter(([_, data]: [string, any]) => data.amount > 0)
-      .map(([symbol, data]: [string, any]) => ({
-        symbol,
-        chain: 'Unknown',
-        chainId: 0,
-        amount: data.amount,
-        balanceFormatted: data.amount.toString(),
-        token: { symbol, name: symbol },
-      }));
   };
 
   const getPaymentMethodIcon = (type: string) => {
@@ -162,7 +150,44 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }
   };
 
-  const activeAssets = getActiveCryptoAssets();
+  // Get active assets from real wallet balances or fallback to dummy data
+  // Use useMemo to prevent unnecessary recalculations and re-renders
+  // Balances update progressively - new ones appear as they're found without blocking UI
+  const activeAssets = React.useMemo(() => {
+    // Use displayBalances (limited) for dashboard, full balances for "View All"
+    const balancesToUse = displayBalances;
+    
+    if (isConnected && balancesToUse && balancesToUse.length > 0) {
+      // Return real wallet balances (limited to initial display)
+      // Balances update progressively - new ones appear as they're found
+      return balancesToUse.map((balance) => ({
+        symbol: balance.token.symbol,
+        chain: balance.chain.name,
+        chainId: balance.chain.id,
+        amount: parseFloat(balance.balanceFormatted),
+        balanceFormatted: balance.balanceFormatted,
+        token: balance.token,
+        chainData: balance.chain, // Include full chain data for testnet detection
+      }));
+    }
+    
+    // Fallback to dummy data (only if wallet not connected)
+    if (!isConnected && balances?.crypto) {
+      return Object.entries(balances.crypto)
+        .filter(([_, data]: [string, any]) => data.amount > 0)
+        .map(([symbol, data]: [string, any]) => ({
+          symbol,
+          chain: 'Unknown',
+          chainId: 0,
+          amount: data.amount,
+          balanceFormatted: data.amount.toString(),
+          token: { symbol, name: symbol },
+          chainData: null,
+        }));
+    }
+    
+    return [];
+  }, [displayBalances, isConnected, balances]);
 
   return (
     <Web3Container>
@@ -174,8 +199,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </h1>
           <p className="text-indigo-200/80 text-sm">Manage your finances in one place</p>
         </div>
-        <Web3Button variant="secondary" onClick={onRefresh} className="p-2" icon>
-          <RefreshCw className="w-5 h-5" />
+        <Web3Button 
+          variant="secondary" 
+          onClick={() => {
+            refreshBalances();
+            onRefresh();
+          }} 
+          className="p-2" 
+          icon
+          disabled={isLoadingBalances}
+        >
+          <RefreshCw className={`w-5 h-5 ${isLoadingBalances ? 'animate-spin' : ''}`} />
         </Web3Button>
       </div>
 
@@ -287,7 +321,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       </Web3Card>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
+      <div className="grid grid-cols-4 gap-3 mb-6">
         <Web3Button 
           className="h-16 flex flex-col gap-1"
           onClick={() => onNavigate('buy')}
@@ -310,6 +344,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
         >
           <Send className="w-5 h-5" />
           <span className="text-sm">Send</span>
+        </Web3Button>
+        <Web3Button 
+          variant="secondary" 
+          className="h-16 flex flex-col gap-1"
+          onClick={() => onNavigate('transactions')}
+        >
+          <History className="w-5 h-5" />
+          <span className="text-sm">History</span>
         </Web3Button>
       </div>
 
@@ -423,6 +465,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
               className="text-blue-400"
             >
               View All
+              {hasMore && walletBalances && walletBalances.length > 10 && (
+                <Badge className="bg-blue-400/20 text-blue-400 border-blue-400/30 text-xs ml-2">
+                  +{walletBalances.length - 10}
+                </Badge>
+              )}
             </Web3Button>
           </div>
           </div>
@@ -436,15 +483,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <WalletConnect />
             </div>
           </Web3Card>
-        ) : isLoadingBalances ? (
-          <Web3Card className="p-6 text-center">
-            <RefreshCw className="w-8 h-8 text-indigo-400 mx-auto mb-3 animate-spin" />
-            <p className="text-indigo-200/70">Loading wallet balances...</p>
-          </Web3Card>
         ) : activeAssets.length > 0 ? (
           <div className="space-y-3">
+            {/* Show limited assets (first 3) with "View All" indicator */}
             {activeAssets.slice(0, 3).map((asset: any, index: number) => {
-              const chainLogo = asset.chainId ? getChainLogo(asset.chainId, asset.chain?.testnet) : null;
+              const chainLogo = asset.chainId ? getChainLogo(asset.chainId, asset.chainData?.testnet || false) : null;
               const cryptoInfo = CRYPTO_INFO[asset.symbol as keyof typeof CRYPTO_INFO];
               const price = cryptoInfo 
                 ? (currency === 'GHS' ? cryptoInfo.price_ghs : cryptoInfo.price_usd)
@@ -461,15 +504,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     <div className="flex items-center gap-3">
                       {chainLogo ? (
                         <div className="relative">
-                          <img 
+                          <Image 
                             src={chainLogo} 
                             alt={asset.chain}
+                            width={48}
+                            height={48}
+                            unoptimized={true}
                             className="w-12 h-12 rounded-full object-cover"
                             onError={(e) => {
                               e.currentTarget.style.display = 'none';
                             }}
                           />
-                          {asset.chain?.testnet && (
+                          {asset.chainData?.testnet && (
                             <div className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full border-2 border-slate-900 flex items-center justify-center">
                               <span className="text-[8px] text-white font-bold">T</span>
                             </div>
@@ -508,6 +554,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
               );
             })}
           </div>
+        ) : isLoadingBalances ? (
+          // Only show loading on initial load (first time or manual refresh)
+          <Web3Card className="p-6 text-center">
+            <RefreshCw className="w-8 h-8 text-indigo-400 mx-auto mb-3 animate-spin" />
+            <p className="text-indigo-200/70">Loading wallet balances...</p>
+            <p className="text-xs text-indigo-200/50 mt-2">Checking all chains and tokens</p>
+          </Web3Card>
         ) : (
           <Web3Card className="p-6 text-center">
             <Wallet className="w-12 h-12 text-indigo-200/70 mx-auto mb-3" />

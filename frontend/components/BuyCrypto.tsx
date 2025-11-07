@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useMemo } from 'react';
+import Image from 'next/image';
 import { Web3Container, Web3Card, Web3Button } from './Web3Theme';
 import { NetworkSelector } from './NetworkSelector';
 import { TokenSelector } from './TokenSelector';
@@ -222,11 +223,12 @@ export default function BuyCrypto() {
                   {selectedCountryData ? (
                     <>
                       <div className="relative shrink-0">
-                        <img
+                        <Image
                           src={selectedCountryData.flag}
                           alt={selectedCountryData.name}
                           width={32}
                           height={32}
+                          unoptimized={true}
                           className="rounded-full object-cover w-8 h-8 ring-2 ring-white/20"
                         />
                       </div>
@@ -264,15 +266,16 @@ export default function BuyCrypto() {
                         onClick={() => handleCountrySelect(country.code)}
                         className={`w-full p-4 flex items-center gap-3 transition-all duration-150 ${
                           selectedCountry === country.code
-                            ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 border-l-2 border-blue-400'
+                            ? 'bg-linear-to-r from-blue-500/20 to-purple-500/20 border-l-2 border-blue-400'
                             : 'hover:bg-white/5 border-l-2 border-transparent'
                         }`}
                       >
                         <div className="relative shrink-0">
-                          <img
+                          <Image
                             src={country.flag}
                             alt={country.name}
                             width={32}
+                            unoptimized={true}
                             height={32}
                             className="rounded-full object-cover w-8 h-8 ring-2 ring-white/20"
                           />

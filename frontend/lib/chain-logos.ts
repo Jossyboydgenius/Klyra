@@ -36,24 +36,38 @@ if (blockchainsData?.data && Array.isArray(blockchainsData.data)) {
  * @returns The logo URL or null if not found
  */
 export function getChainLogo(chainId: number, isTestnet?: boolean): string | null {
-  // First try to get the logo for this specific chain
-  let logo = chainLogoMap.get(chainId);
+  // Map of testnet chain IDs to their mainnet equivalents
+  // For testnets, always use mainnet logo
+  const testnetToMainnet: Record<number, number> = {
+    11155111: 1,    // Sepolia -> Ethereum
+    84532: 8453,    // Base Sepolia -> Base
+    80001: 137,     // Mumbai -> Polygon
+    80002: 137,     // Polygon Amoy -> Polygon
+    421614: 42161,  // Arbitrum Sepolia -> Arbitrum
+    11155420: 10,   // Optimism Sepolia -> Optimism
+    97: 56,         // BSC Testnet -> BSC
+    43113: 43114,   // Avalanche Fuji -> Avalanche
+  };
   
-  // If testnet and no logo found, try to find mainnet equivalent
-  if (isTestnet && !logo) {
-    // Map of testnet chain IDs to their mainnet equivalents
-    const testnetToMainnet: Record<number, number> = {
-      11155111: 1,    // Sepolia -> Ethereum
-      84532: 8453,    // Base Sepolia -> Base
-      80001: 137,     // Mumbai -> Polygon
-      421614: 42161,  // Arbitrum Sepolia -> Arbitrum
-      11155420: 10,   // Optimism Sepolia -> Optimism
-      97: 56,         // BSC Testnet -> BSC
-    };
-    
+  // If testnet, use mainnet logo
+  if (isTestnet) {
     const mainnetId = testnetToMainnet[chainId];
     if (mainnetId) {
-      logo = chainLogoMap.get(mainnetId);
+      const mainnetLogo = chainLogoMap.get(mainnetId);
+      if (mainnetLogo) {
+        return mainnetLogo;
+      }
+    }
+  }
+  
+  // Try to get the logo for this specific chain
+  const logo = chainLogoMap.get(chainId);
+  
+  // If still no logo and it's a testnet, try mainnet again
+  if (!logo && isTestnet) {
+    const mainnetId = testnetToMainnet[chainId];
+    if (mainnetId) {
+      return chainLogoMap.get(mainnetId) || null;
     }
   }
   
