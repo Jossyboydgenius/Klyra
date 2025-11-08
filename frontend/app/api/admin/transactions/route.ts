@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     }
 
     const transactions = await transactionService.getTransactions({
-      limit: 50
+      limit: 40
     });
 
     return NextResponse.json({

@@ -25,6 +25,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const callbackBase =
+      process.env.PAYSTACK_CALLBACK_URL || process.env.NEXT_PUBLIC_URL || '';
+    const callbackUrl = callbackBase
+      ? callbackBase.includes('/payment/callback')
+        ? callbackBase
+        : `${callbackBase.replace(/\/$/, '')}/payment/callback`
+      : undefined;
+
     // Determine transaction type (direct or swap)
     const transactionType = cdpService.isSwapRequired(cryptoAsset) ? 'swap' : 'direct';
 
@@ -39,6 +47,7 @@ export async function POST(request: NextRequest) {
       phone,
       currency,
       channels: paymentChannels,
+      callback_url: callbackUrl,
       metadata: {
         crypto_amount: cryptoAmount,
         crypto_asset: cryptoAsset,

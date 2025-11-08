@@ -106,9 +106,23 @@ export const PaymentMethods: React.FC<PaymentMethodsProps> = ({ accessToken, onR
   const formatPaymentMethodDetails = (method: PaymentMethod) => {
     switch (method.type) {
       case 'momo':
-        return `${method.details.provider} - ${method.details.phone_number}`;
+        return [
+          method.details?.provider,
+          method.details?.phone || method.details?.phone_number,
+          method.details?.validated_name || method.details?.name,
+        ]
+          .filter(Boolean)
+          .join(' • ');
       case 'bank':
-        return `${method.details.bank_name} - ${method.details.account_number?.slice(-4)}`;
+        return [
+          method.details?.bank_name,
+          method.details?.account_number?.slice(-4)
+            ? `•••• ${method.details.account_number.slice(-4)}`
+            : undefined,
+          method.details?.account_name,
+        ]
+          .filter(Boolean)
+          .join(' • ');
       case 'card':
         return `Card ending ${method.details.card_number?.slice(-4)}`;
       default:
@@ -204,7 +218,7 @@ export const PaymentMethods: React.FC<PaymentMethodsProps> = ({ accessToken, onR
                           <div>
                             <div className="flex items-center gap-2">
                               <p className="font-semibold text-white">{method.name}</p>
-                              {method.is_verified && (
+                              {(method.is_verified || method.details?.validation_status === 'verified') && (
                                 <Badge className="bg-green-400/20 text-green-400 border-green-400/30">
                                   <Shield className="w-3 h-3 mr-1" />
                                   Verified

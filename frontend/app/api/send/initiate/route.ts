@@ -56,6 +56,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const callbackBase =
+      process.env.PAYSTACK_CALLBACK_URL || process.env.NEXT_PUBLIC_URL || '';
+    const callbackUrl = callbackBase
+      ? callbackBase.includes('/payment/callback')
+        ? callbackBase
+        : `${callbackBase.replace(/\/$/, '')}/payment/callback`
+      : undefined;
+
     const sendType = send_type || 'direct';
     const transactionHash = txHash;
     const transactionStatus = txStatus || 'pending';
@@ -215,6 +223,7 @@ export async function POST(request: NextRequest) {
           phone: '',
           currency: currency,
           channels: ['bank_transfer', 'ussd', 'mobile_money'],
+          callback_url: callbackUrl,
           metadata: {
             send_type: 'fiat-to-crypto',
             recipient_address: recipient_address,

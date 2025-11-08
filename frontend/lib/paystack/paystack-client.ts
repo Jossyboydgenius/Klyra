@@ -38,8 +38,8 @@ export class PaystackService {
   private publicKey: string;
 
   constructor() {
-    this.secretKey = process.env.PAYSTACK_SECRET_KEY || '';
-    this.publicKey = process.env.PAYSTACK_PUBLIC_KEY || '';
+    this.secretKey = process.env.DEV_PAYSTACK_SECRET_KEY || '';
+    this.publicKey = process.env.DEV_PAYSTACK_PUBLIC_KEY || '';
     
     if (!this.secretKey || !this.publicKey) {
       console.warn('Paystack keys not configured. Payments will fail.');
@@ -55,6 +55,7 @@ export class PaystackService {
     phone: string;
     currency: string;
     channels: string[]; // ['mobile_money', 'ussd', 'bank_transfer']
+    callback_url?: string;
     metadata: {
       crypto_amount: string;
       crypto_asset: string;
@@ -81,6 +82,7 @@ export class PaystackService {
           email: params.email,
           amount: params.amount,
           currency: params.currency,
+          callback_url: params.callback_url,
           channels: params.channels,
           metadata: {
             ...params.metadata,

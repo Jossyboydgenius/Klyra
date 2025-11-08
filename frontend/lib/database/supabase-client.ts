@@ -22,6 +22,8 @@ export interface Transaction {
   fiat_currency: string;
   payment_status: 'pending' | 'success' | 'failed';
   payment_method?: string;
+  provider?: string;
+  provider_channel?: string;
   crypto_asset: string;
   crypto_amount: string;
   network: string;

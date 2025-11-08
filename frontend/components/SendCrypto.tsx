@@ -114,6 +114,11 @@ export const SendCrypto: React.FC<SendCryptoProps> = ({
   const [error, setError] = useState('');
   const [transactionId, setTransactionId] = useState('');
   const [showAssetSelector, setShowAssetSelector] = useState(false);
+  const [recipientValidation, setRecipientValidation] = useState<{
+    status: 'idle' | 'loading' | 'success' | 'error';
+    name?: string;
+    message?: string;
+  }>({ status: 'idle' });
 
   // Fetch balance for selected token on-demand
   // Only fetch when we have a token selected and it's not already in walletBalances
@@ -719,6 +724,139 @@ export const SendCrypto: React.FC<SendCryptoProps> = ({
     setSendType(type);
     setStep(3); // Go to amount/asset selection
     setError('');
+    setRecipientValidation({ status: 'idle' });
+  };
+
+const normalizePhoneNumber = (value?: string) =>
+  value?.replace(/[^\d+]/g, '').trim() ?? '';
+
+const PROVIDER_CHANNEL_MAP: Record<string, number> = {
+  'MTN': 1,
+  'MTN MOMO': 1,
+  'MTN MOBILE MONEY': 1,
+  'VODAFONE': 6,
+  'VODAFONE CASH': 6,
+  'AIRTELTIGO': 7,
+  'AIRTELTIGO MONEY': 7,
+  'AIRTEL TIGO': 7,
+};
+
+const resolveProviderChannel = (provider?: string) =>
+  provider ? PROVIDER_CHANNEL_MAP[provider.trim().toUpperCase()] : undefined;
+
+  const validateRecipientPaymentAccount = async (method: any) => {
+    if (!method || method.type !== 'momo') {
+      setRecipientValidation({ status: 'idle' });
+      return;
+    }
+
+    if (method.details?.validated_name) {
+      setRecipientValidation({
+        status: 'success',
+        name: method.details.validated_name,
+      });
+      return;
+    }
+
+    const phone =
+      method.details?.phone ||
+      method.details?.phone_number ||
+      method.account_number;
+    if (!phone) {
+      setRecipientValidation({
+        status: 'error',
+        message: 'Payment method is missing a mobile number for validation.',
+      });
+      return;
+    }
+
+    const channel =
+      method.details?.provider_channel
+        ? Number(method.details.provider_channel)
+        : resolveProviderChannel(
+            method.details?.provider ||
+              method.name ||
+              method.account_provider,
+          );
+
+    if (!channel) {
+      setRecipientValidation({
+        status: 'error',
+        message:
+          'Unable to determine the mobile money network for this payment method.',
+      });
+      return;
+    }
+
+    setRecipientValidation({ status: 'loading' });
+
+    try {
+      const response = await fetch('/api/moolre/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          receiver: normalizePhoneNumber(phone),
+          channel,
+          currency: currency || 'GHS',
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success && data.data?.status === 1) {
+        const accountName =
+          typeof data.data.data === 'string' ? data.data.data : '';
+        setRecipientValidation({
+          status: 'success',
+          name: accountName,
+          message: data.data?.message,
+        });
+        setSelectedPaymentMethod((prev: any) =>
+          prev
+            ? {
+                ...prev,
+                details: {
+                  ...prev.details,
+                  validated_name: accountName,
+                  validation_status: 'verified',
+                  provider_channel: channel.toString(),
+                },
+              }
+            : prev,
+        );
+      } else if (response.ok) {
+        setRecipientValidation({
+          status: 'success',
+          name: undefined,
+          message: 'Validation service temporarily unavailable. Proceeding without account name.',
+        });
+        setSelectedPaymentMethod((prev: any) =>
+          prev
+            ? {
+                ...prev,
+                details: {
+                  ...prev.details,
+                  provider_channel: channel.toString(),
+                },
+              }
+            : prev,
+        );
+      } else {
+        setRecipientValidation({
+          status: 'error',
+          message:
+            data.data?.message ||
+            data.error ||
+            'Unable to confirm account ownership. Please double-check the number.',
+        });
+      }
+    } catch (validationError) {
+      console.error('Recipient validation error:', validationError);
+      setRecipientValidation({
+        status: 'error',
+        message:
+          'We could not verify this account right now. Please try again before proceeding.',
+      });
+    }
   };
 
   const handleSendCrypto = async () => {
@@ -1467,6 +1605,7 @@ export const SendCrypto: React.FC<SendCryptoProps> = ({
                     onClick={() => {
                       setSelectedPaymentMethod(method);
                       setError('');
+                      validateRecipientPaymentAccount(method);
                     }}
                     className={`w-full flex items-center justify-between px-4 py-3 rounded-lg border transition-colors ${
                       selectedPaymentMethod?.id === method.id
@@ -1484,10 +1623,23 @@ export const SendCrypto: React.FC<SendCryptoProps> = ({
                       </div>
                       <div className="text-left">
                         <p className="text-white font-medium">{method.name}</p>
-                        <p className="text-xs text-indigo-200/70">{method.account_number || method.account_name}</p>
+                        <p className="text-xs text-indigo-200/70">
+                          {method.details?.validated_name ||
+                            method.details?.name ||
+                            method.account_name ||
+                            method.account_number}
+                        </p>
+                        {method.details?.phone && (
+                          <p className="text-xs text-indigo-300/60">
+                            {method.details.phone}
+                          </p>
+                        )}
                       </div>
                     </div>
-                    {method.is_verified && (
+                    {(method.is_verified ||
+                      method.details?.validation_status === 'verified' ||
+                      (selectedPaymentMethod?.id === method.id &&
+                        recipientValidation.status === 'success')) && (
                       <Badge className="bg-green-400/20 text-green-400 border-green-400/30 text-xs">
                         Verified
                       </Badge>
@@ -1495,6 +1647,29 @@ export const SendCrypto: React.FC<SendCryptoProps> = ({
                   </button>
                 ))}
               </div>
+              {selectedPaymentMethod && recipientValidation.status !== 'idle' && (
+                <div className="mt-3 rounded-lg border border-indigo-400/30 bg-white/5 px-4 py-3 text-sm">
+                  {recipientValidation.status === 'loading' && (
+                    <div className="flex items-center gap-2 text-indigo-200/80">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Verifying recipient account name…
+                    </div>
+                  )}
+                  {recipientValidation.status === 'success' && (
+                    <div className="text-green-300">
+                      Recipient account name confirmed:{' '}
+                      <span className="font-semibold">
+                        {recipientValidation.name}
+                      </span>
+                    </div>
+                  )}
+                  {recipientValidation.status === 'error' && (
+                    <div className="text-orange-300">
+                      {recipientValidation.message}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -1826,7 +2001,20 @@ export const SendCrypto: React.FC<SendCryptoProps> = ({
                 <span className="text-indigo-200/80">Payment Method:</span>
                 <div className="text-right">
                   <p className="font-medium text-white">{selectedPaymentMethod.name}</p>
-                  <p className="text-sm text-indigo-200/70">{selectedPaymentMethod.account_number || selectedPaymentMethod.account_name}</p>
+                  {(selectedPaymentMethod.details?.validated_name ||
+                    recipientValidation.name) && (
+                    <p className="text-sm text-indigo-200/70">
+                      {selectedPaymentMethod.details?.validated_name ||
+                        recipientValidation.name}
+                    </p>
+                  )}
+                  {(selectedPaymentMethod.details?.phone ||
+                    selectedPaymentMethod.account_number) && (
+                    <p className="text-xs text-indigo-200/60">
+                      {selectedPaymentMethod.details?.phone ||
+                        selectedPaymentMethod.account_number}
+                    </p>
+                  )}
                 </div>
               </div>
             )}

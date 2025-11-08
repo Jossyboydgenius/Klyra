@@ -6,7 +6,7 @@ import { CDPService } from '@/lib/cdp/cdp-client';
 export async function POST(request: NextRequest) {
   try {
     // Check for Paystack keys first
-    if (!process.env.PAYSTACK_SECRET_KEY || !process.env.PAYSTACK_PUBLIC_KEY) {
+    if (!process.env.DEV_PAYSTACK_SECRET_KEY || !process.env.PAYSTACK_PUBLIC_KEY) {
       console.error('Missing Paystack environment variables');
       return NextResponse.json(
         { 
@@ -29,7 +29,9 @@ export async function POST(request: NextRequest) {
       email,
       phone,
       fiat_amount,
-      fiat_currency
+      fiat_currency,
+      provider,
+      provider_channel
     } = await request.json();
 
     console.log('Received payment request:', { email, fiat_amount, fiat_currency, crypto_asset, crypto_amount });
@@ -71,7 +73,9 @@ export async function POST(request: NextRequest) {
           user_wallet: user_wallet_address,
           transaction_type: transactionType,
           chain_id: chain_id?.toString(),
-          token_address: token_address
+          token_address: token_address,
+          provider,
+          provider_channel,
         }
       });
       console.log('Paystack initialization successful:', paystackResult.data.reference);
@@ -123,7 +127,9 @@ export async function POST(request: NextRequest) {
         transaction_type: transactionType,
         onramp_status: 'pending',
         transfer_status: 'pending',
-        retry_count: 0
+        retry_count: 0,
+        provider,
+        provider_channel: provider_channel?.toString(),
       });
       console.log('Transaction record created:', transaction.id);
     } catch (dbError: any) {

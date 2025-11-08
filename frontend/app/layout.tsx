@@ -22,7 +22,7 @@ export const viewport: Viewport = {
 export async function generateMetadata(): Promise<Metadata> {
   const URL = process.env.NEXT_PUBLIC_URL;
   return {
-    title: "Klyra - Your Web3 Super App",
+    title: "Klyra - Finance the ultimate way",
     description:
       "The ultimate Web3 mobile app that bridges traditional finance and crypto. Connect your banks, mobile money, credit cards, and crypto wallets in one secure place. Buy, sell, send crypto with bank-level security.",
     keywords: "Web3, crypto, DeFi, mobile money, banking, blockchain, wallet, fintech, cryptocurrency",

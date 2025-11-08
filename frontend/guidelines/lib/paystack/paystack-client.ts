@@ -38,8 +38,8 @@ export class PaystackService {
   private publicKey: string;
 
   constructor() {
-    this.secretKey = process.env.PAYSTACK_SECRET_KEY!;
-    this.publicKey = process.env.PAYSTACK_PUBLIC_KEY!;
+    this.secretKey = process.env.DEV_PAYSTACK_SECRET_KEY!;
+    this.publicKey = process.env.DEV_PAYSTACK_PUBLIC_KEY!;
   }
 
   /**

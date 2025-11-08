@@ -189,6 +189,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return [];
   }, [displayBalances, isConnected, balances]);
 
+  const scrollToTopIfNeeded = React.useCallback(() => {
+    if (typeof window !== 'undefined' && window.scrollY > 0) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, []);
+
+  const handleQuickAction = React.useCallback((screen: string) => {
+    scrollToTopIfNeeded();
+    onNavigate(screen);
+  }, [onNavigate, scrollToTopIfNeeded]);
+
   return (
     <Web3Container>
       {/* Header */}
@@ -253,9 +264,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       {/* Wallet Connect Section */}
       <Web3Card className="mb-6 bg-linear-to-r from-blue-600/20 to-purple-600/20 border-blue-500/30">
-        <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <h3 className="font-semibold text-white mb-1 flex items-center gap-2">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex-1 space-y-2">
+            <h3 className="font-semibold text-white flex items-center gap-2 text-nowrap">
               <Wallet className="w-5 h-5" />
               Web3 Wallet
             </h3>
@@ -266,28 +277,30 @@ export const Dashboard: React.FC<DashboardProps> = ({
               }
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
             {!isConnected && (
-              <div className="w-[200px]">
+              <div className="w-full sm:w-[200px]">
                 <WalletConnect />
               </div>
             )}
             {isConnected && (
-              <Web3Button
-                variant="secondary"
-                onClick={() => router.push('/payment')}
-                className="flex items-center gap-2"
-              >
-                <Link2 className="w-4 h-4" />
-                Cross-Chain Pay
-              </Web3Button>
+              <div className="w-full sm:w-[200px]">
+                <Web3Button
+                  variant="secondary"
+                  onClick={() => router.push('/payment')}
+                  className="flex w-full items-center justify-center gap-2 text-sm md:text-base lg:text-lg text-nowrap"
+                >
+                  <Link2 className="w-4 h-4" />
+                  Cross-Chain Pay
+                </Web3Button>
+              </div>
             )}
           </div>
         </div>
       </Web3Card>
 
       {/* Onramp Fiat System Status */}
-      <Web3Card className="mb-6 bg-linear-to-r from-green-600/20 to-blue-600/20 border-green-500/30">
+      {/* <Web3Card className="mb-6 bg-linear-to-r from-green-600/20 to-blue-600/20 border-green-500/30">
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <h3 className="font-semibold text-white mb-2 flex items-center gap-2">
@@ -297,34 +310,30 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm">
                 <CircleCheck className="w-4 h-4 text-green-400" />
-                <span className="text-indigo-200/90">Fiat-to-Crypto onramp: Active</span>
+                <span className="text-indigo-200/90 text-nowrap">Fiat-to-Crypto onramp: Active</span>
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <CircleCheck className="w-4 h-4 text-green-400" />
-                <span className="text-indigo-200/90">Liquidity Pool: Operational</span>
+                <span className="text-indigo-200/90 text-nowrap">Liquidity Pool: Operational</span>
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <CircleCheck className="w-4 h-4 text-green-400" />
-                <span className="text-indigo-200/90">Supported Chains: Base, Ethereum, Polygon, Optimism</span>
+                <span className="text-indigo-200/90 text-nowrap">Supported Chains: Base,Ethereum, <br /> Polygon, Optimism</span>
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <CircleCheck className="w-4 h-4 text-green-400" />
-                <span className="text-indigo-200/90">Auto-swap & bridge: Enabled</span>
+                <span className="text-indigo-200/90 text-nowrap">Auto-swap & bridge: Enabled</span>
               </div>
             </div>
           </div>
-          <Badge className="bg-green-400/20 text-green-400 border-green-400/30">
-            <CircleCheck className="w-3 h-3 mr-1" />
-            Active
-          </Badge>
         </div>
-      </Web3Card>
+      </Web3Card> */}
 
       {/* Quick Actions */}
       <div className="grid grid-cols-4 gap-3 mb-6">
         <Web3Button 
           className="h-16 flex flex-col gap-1"
-          onClick={() => onNavigate('buy')}
+          onClick={() => handleQuickAction('buy')}
         >
           <Plus className="w-5 h-5" />
           <span className="text-sm">Buy</span>
@@ -332,7 +341,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <Web3Button 
           variant="secondary" 
           className="h-16 flex flex-col gap-1"
-          onClick={() => onNavigate('sell')}
+          onClick={() => handleQuickAction('sell')}
         >
           <ArrowDownLeft className="w-5 h-5" />
           <span className="text-sm">Sell</span>
@@ -340,7 +349,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <Web3Button 
           variant="secondary" 
           className="h-16 flex flex-col gap-1"
-          onClick={() => onNavigate('send')}
+          onClick={() => handleQuickAction('send')}
         >
           <Send className="w-5 h-5" />
           <span className="text-sm">Send</span>
@@ -348,7 +357,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <Web3Button 
           variant="secondary" 
           className="h-16 flex flex-col gap-1"
-          onClick={() => onNavigate('transactions')}
+          onClick={() => handleQuickAction('transactions')}
         >
           <History className="w-5 h-5" />
           <span className="text-sm">History</span>
@@ -430,17 +439,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       {/* Crypto Wallet */}
       <div className="mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold text-white flex items-center gap-2">
-            <Wallet className="w-5 h-5" />
-            Crypto Wallet
+        <div className="flex flex-col gap-3 mb-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-white flex items-center gap-2">
+              <Wallet className="w-5 h-5" />
+              Crypto Wallet
+            </h3>
             {isConnected && (
               <Badge className="bg-green-400/20 text-green-400 border-green-400/30 text-xs">
                 Connected
               </Badge>
             )}
-          </h3>
-          <div className="flex gap-2">
+          </div>
+          <div className="flex flex-wrap gap-2">
             {isConnected && (
               <Web3Button 
                 variant="ghost" 
@@ -450,7 +461,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 {includeTestnets ? 'Hide Testnets' : 'Show Testnets'}
               </Web3Button>
             )}
-          <div className="flex gap-2">
             <Web3Button 
               variant="ghost" 
               onClick={() => onNavigate('add-network-token')}
@@ -462,7 +472,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <Web3Button 
               variant="ghost" 
               onClick={() => onNavigate('wallet')}
-              className="text-blue-400"
+              className="text-blue-400 text-xs"
             >
               View All
               {hasMore && walletBalances && walletBalances.length > 10 && (
@@ -471,7 +481,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </Badge>
               )}
             </Web3Button>
-          </div>
           </div>
         </div>
 

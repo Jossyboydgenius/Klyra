@@ -78,7 +78,7 @@ async function handleSuccessfulPayment(data: any) {
  * Verify Paystack webhook signature
  */
 function verifyPaystackSignature(body: any, signature: string): boolean {
-  const secretKey = process.env.PAYSTACK_SECRET_KEY || '';
+  const secretKey = process.env.DEV_PAYSTACK_SECRET_KEY || '';
   const hash = crypto
     .createHmac('sha512', secretKey)
     .update(JSON.stringify(body))

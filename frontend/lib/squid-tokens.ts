@@ -42,21 +42,44 @@ export interface SquidChain {
 const SQUID_TESTNET_API = 'https://testnet.api.squidrouter.com/v1';
 const SQUID_MAINNET_API = 'https://api.squidrouter.com/v1';
 
-// Cache for tokens and chains
-let tokensCache: Map<number, SquidToken[]> | null = null;
-let chainsCache: SquidChain[] | null = null;
-let cacheTimestamp: number = 0;
+type CacheKey = 'mainnet' | 'testnet';
+
+interface ChainCacheEntry {
+  data: SquidChain[];
+  timestamp: number;
+}
+
+interface TokenCacheEntry {
+  data: Map<number, SquidToken[]>;
+  timestamp: number;
+}
+
+// Cache for tokens and chains (separate per environment)
+const chainCache: Record<CacheKey, ChainCacheEntry | null> = {
+  mainnet: null,
+  testnet: null,
+};
+
+const tokenCache: Record<CacheKey, TokenCacheEntry | null> = {
+  mainnet: null,
+  testnet: null,
+};
+
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+const getCacheKey = (isTestnet: boolean): CacheKey =>
+  isTestnet ? 'testnet' : 'mainnet';
 
 /**
  * Fetch chains from Squid API
  */
 export async function getSquidChains(isTestnet: boolean = true): Promise<SquidChain[]> {
   const now = Date.now();
-  
-  // Return cached data if still valid
-  if (chainsCache && (now - cacheTimestamp) < CACHE_DURATION) {
-    return chainsCache;
+  const cacheKey = getCacheKey(isTestnet);
+  const cached = chainCache[cacheKey];
+
+  if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+    return cached.data;
   }
 
   try {
@@ -71,16 +94,14 @@ export async function getSquidChains(isTestnet: boolean = true): Promise<SquidCh
     
     if (data.status && data.data?.chains) {
       const chains = data.data.chains;
-      chainsCache = chains;
-      cacheTimestamp = now;
+      chainCache[cacheKey] = { data: chains, timestamp: now };
       return chains;
     }
 
     return [];
   } catch (error) {
     console.error('Error fetching Squid chains:', error);
-    // Return cached data if available, even if expired
-    return chainsCache || [];
+    return cached?.data || [];
   }
 }
 
@@ -89,10 +110,11 @@ export async function getSquidChains(isTestnet: boolean = true): Promise<SquidCh
  */
 export async function getSquidTokens(isTestnet: boolean = true): Promise<Map<number, SquidToken[]>> {
   const now = Date.now();
-  
-  // Return cached data if still valid
-  if (tokensCache && (now - cacheTimestamp) < CACHE_DURATION) {
-    return tokensCache;
+  const cacheKey = getCacheKey(isTestnet);
+  const cached = tokenCache[cacheKey];
+
+  if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+    return cached.data;
   }
 
   try {
@@ -129,9 +151,8 @@ export async function getSquidTokens(isTestnet: boolean = true): Promise<Map<num
           tokensByChain.get(token.chainId)!.push(token);
         });
 
-        tokensCache = tokensByChain;
-        cacheTimestamp = now;
-        return tokensCache;
+        tokenCache[cacheKey] = { data: tokensByChain, timestamp: now };
+        return tokensByChain;
       }
 
       return new Map();
@@ -153,10 +174,8 @@ export async function getSquidTokens(isTestnet: boolean = true): Promise<Map<num
       throw fetchError;
     }
   } catch (error: any) {
-    // Log error but don't break the app
     console.warn('Error fetching Squid tokens:', error?.message || error);
-    // Return cached data if available, even if expired, or empty map
-    return tokensCache || new Map();
+    return cached?.data || new Map();
   }
 }
 
@@ -178,8 +197,9 @@ export async function getSquidTokensForChain(chainId: number, isTestnet: boolean
  * Clear the cache (useful for testing or forced refresh)
  */
 export function clearSquidCache() {
-  tokensCache = null;
-  chainsCache = null;
-  cacheTimestamp = 0;
+  tokenCache.mainnet = null;
+  tokenCache.testnet = null;
+  chainCache.mainnet = null;
+  chainCache.testnet = null;
 }
 

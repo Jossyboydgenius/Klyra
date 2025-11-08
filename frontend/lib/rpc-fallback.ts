@@ -31,7 +31,6 @@ const ADDITIONAL_PUBLIC_RPCS: Record<number, string[]> = {
     'https://rpc.notadegen.com/base',
     'https://base.meowrpc.com',
     'https://base.alt.technology',
-    'https://base-rpc.publicnode.com',
     'https://base-mainnet-rpc.allthatnode.com',
     'https://base.blockpi.network/v1/rpc/public',
     // Alchemy (allowed even though it may need API key)
@@ -39,9 +38,6 @@ const ADDITIONAL_PUBLIC_RPCS: Record<number, string[]> = {
       ? [`https://base-mainnet.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY}`]
       : ['https://base-mainnet.g.alchemy.com/v2/demo']
     ),
-    // Official (rate limited - put last)
-    'https://mainnet.base.org',
-    'https://developer-access-mainnet.base.org',
   ],
   // Base Sepolia
   84532: [

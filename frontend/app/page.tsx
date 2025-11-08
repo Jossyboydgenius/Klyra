@@ -211,15 +211,26 @@ const App: React.FC = () => {
               <div className="relative" ref={userDropdownRef}>
                 <button
                   onClick={() => setShowUserDropdown(!showUserDropdown)}
-                  className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-white/10 rounded-lg backdrop-blur-sm hover:bg-white/20 transition-colors"
+                  className="hidden items-center gap-2 rounded-lg bg-white/10 px-3 py-1.5 backdrop-blur-sm transition-colors hover:bg-white/20 sm:flex"
                 >
-                  <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                    <User className="w-4 h-4 text-white" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20">
+                    <User className="h-4 w-4 text-white" />
                   </div>
-                  <span className="text-sm font-medium text-white truncate max-w-[120px]">
+                  <span className="max-w-[120px] truncate text-sm font-medium text-white">
                     {user.name || user.email.split('@')[0]}
                   </span>
-                  <ChevronDown className={`w-4 h-4 text-white transition-transform ${showUserDropdown ? 'rotate-180' : ''}`} />
+                  <ChevronDown
+                    className={`h-4 w-4 text-white transition-transform ${showUserDropdown ? 'rotate-180' : ''}`}
+                  />
+                </button>
+                <button
+                  onClick={() => setShowUserDropdown(!showUserDropdown)}
+                  className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/10 text-white transition-colors hover:bg-white/20 sm:hidden"
+                  aria-label="User menu"
+                >
+                  <ChevronDown
+                    className={`h-5 w-5 transition-transform ${showUserDropdown ? 'rotate-180' : ''}`}
+                  />
                 </button>
                 
                 {showUserDropdown && (
@@ -278,151 +289,155 @@ const App: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-linear-to-br from-indigo-50 via-purple-50 to-indigo-50 flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-indigo-950 via-purple-950/40 to-slate-950">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Loading...</p>
+          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-indigo-400"></div>
+          <p className="text-sm font-medium text-indigo-100">
+            Loading your Klyra experience...
+          </p>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="mobile-container">
-      {/* Splash Screen */}
-      {currentScreen === 'splash' && (
-        <SplashScreen onComplete={() => setCurrentScreen('onboarding')} />
-      )}
+  const constrainedScreens = new Set([
+    'dashboard',
+    'payment-methods',
+    'buy',
+    'sell',
+    'send',
+    'wallet',
+    'asset-details',
+    'processing',
+    'add-network-token',
+    'transactions',
+    'transaction-details',
+  ]);
 
-      {/* Main App Content */}
-      {currentScreen !== 'splash' && (
+  const contentWrapperClass = constrainedScreens.has(currentScreen)
+    ? 'mx-auto flex w-full max-w-[1120px] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8'
+    : 'h-full w-full';
+
+  return (
+    <div className="mobile-container flex min-h-screen flex-col bg-slate-950 text-slate-100">
+      {currentScreen === 'splash' ? (
+        <SplashScreen onComplete={() => setCurrentScreen('onboarding')} />
+      ) : (
         <>
           {renderHeader()}
+          <main className="flex-1 overflow-y-auto bg-linear-to-b from-slate-950 via-slate-950/80 to-slate-950 pb-safe">
+            <div className={contentWrapperClass}>
+              {currentScreen === 'onboarding' && (
+                <OnboardingFlow onComplete={() => setCurrentScreen('auth')} />
+              )}
 
-          <div className="flex-1 min-h-0">
-            {currentScreen === 'onboarding' && (
-              <OnboardingFlow onComplete={() => setCurrentScreen('auth')} />
-            )}
+              {currentScreen === 'auth' && (
+                <AuthScreen onAuthSuccess={handleAuth} />
+              )}
 
-            {currentScreen === 'auth' && (
-              <AuthScreen onAuthSuccess={handleAuth} />
-            )}
+              {currentScreen === 'dashboard' && user && balances && (
+                <Dashboard
+                  user={user}
+                  balances={balances}
+                  paymentMethods={paymentMethods}
+                  onNavigate={setCurrentScreen}
+                  onRefresh={refreshUserData}
+                />
+              )}
 
-            {/* {currentScreen === 'kyc' && user && (
-              <KYCScreen
-                email={user.email}
-                countryCode="NG"
-                onComplete={handleKYCComplete}
-              />
-            )} */}
+              {currentScreen === 'payment-methods' && (
+                <PaymentMethods
+                  accessToken={accessToken!}
+                  onRefreshAction={refreshUserData}
+                />
+              )}
 
-            {currentScreen === 'dashboard' && user && balances && (
-              <Dashboard
-                user={user}
-                balances={balances}
-                paymentMethods={paymentMethods}
-                onNavigate={setCurrentScreen}
-                onRefresh={refreshUserData}
-              />
-            )}
+              {currentScreen === 'buy' && <BuyCrypto />}
 
-            {currentScreen === 'payment-methods' && (
-              <PaymentMethods
-                accessToken={accessToken!}
-                onRefreshAction={refreshUserData}
-              />
-            )}
+              {currentScreen === 'sell' && balances && (
+                <SellCrypto
+                  accessToken={accessToken!}
+                  balances={balances}
+                  paymentMethods={paymentMethods}
+                  onTransactionStart={(txId: string) => {
+                    setTransactionId(txId);
+                    setCurrentScreen('processing');
+                  }}
+                  onBack={() => setCurrentScreen('dashboard')}
+                  onNavigate={setCurrentScreen}
+                />
+              )}
 
-            {currentScreen === 'buy' && (
-              <BuyCrypto />
-            )}
+              {currentScreen === 'send' && balances && (
+                <SendCrypto
+                  accessToken={accessToken!}
+                  balances={balances}
+                  paymentMethods={paymentMethods}
+                  onSuccess={() => {
+                    refreshUserData();
+                    setCurrentScreen('wallet');
+                  }}
+                  onBack={() => setCurrentScreen('dashboard')}
+                  onNavigate={setCurrentScreen}
+                />
+              )}
 
-            {currentScreen === 'sell' && balances && (
-              <SellCrypto
-                accessToken={accessToken!}
-                balances={balances}
-                paymentMethods={paymentMethods}
-                onTransactionStart={(txId: string) => {
-                  setTransactionId(txId);
-                  setCurrentScreen('processing');
-                }}
-                onBack={() => setCurrentScreen('dashboard')}
-                onNavigate={setCurrentScreen}
-              />
-            )}
+              {currentScreen === 'wallet' && balances && (
+                <CryptoWallet
+                  balances={balances}
+                  onAssetSelectAction={(asset: string) => {
+                    setSelectedAsset(asset);
+                    setCurrentScreen('asset-details');
+                  }}
+                />
+              )}
 
-            {currentScreen === 'send' && balances && (
-              <SendCrypto
-                accessToken={accessToken!}
-                balances={balances}
-                paymentMethods={paymentMethods}
-                onSuccess={() => {
-                  refreshUserData();
-                  setCurrentScreen('wallet');
-                }}
-                onBack={() => setCurrentScreen('dashboard')}
-                onNavigate={setCurrentScreen}
-              />
-            )}
+              {currentScreen === 'asset-details' && selectedAsset && balances && (
+                <AssetDetails
+                  asset={selectedAsset}
+                  balance={balances.crypto[selectedAsset]}
+                  onBack={() => setCurrentScreen('wallet')}
+                />
+              )}
 
-            {currentScreen === 'wallet' && balances && (
-              <CryptoWallet
-                balances={balances}
-                onAssetSelectAction={(asset: string) => {
-                  setSelectedAsset(asset);
-                  setCurrentScreen('asset-details');
-                }}
-              />
-            )}
+              {currentScreen === 'processing' && transactionId && (
+                <ProcessingScreen
+                  transactionId={transactionId}
+                  accessToken={accessToken!}
+                  onComplete={() => {
+                    refreshUserData();
+                    setCurrentScreen('wallet');
+                  }}
+                />
+              )}
 
-            {currentScreen === 'asset-details' && selectedAsset && balances && (
-              <AssetDetails
-                asset={selectedAsset}
-                balance={balances.crypto[selectedAsset]}
-                onBack={() => setCurrentScreen('wallet')}
-              />
-            )}
+              {currentScreen === 'add-network-token' && (
+                <NetworkTokenAdder
+                  onBack={() => setCurrentScreen('dashboard')}
+                />
+              )}
 
-            {currentScreen === 'processing' && transactionId && (
-              <ProcessingScreen
-                transactionId={transactionId}
-                accessToken={accessToken!}
-                onComplete={() => {
-                  refreshUserData();
-                  setCurrentScreen('wallet');
-                }}
-              />
-            )}
-
-            {currentScreen === 'add-network-token' && (
-              <NetworkTokenAdder
-                onBack={() => setCurrentScreen('dashboard')}
-              />
-            )}
-
-            {currentScreen === 'transactions' && (
-              <div className="p-4">
+              {currentScreen === 'transactions' && (
                 <TransactionsList
                   onSelectTransaction={(transaction) => {
                     setSelectedTransaction(transaction);
                     setCurrentScreen('transaction-details');
                   }}
                 />
-              </div>
-            )}
+              )}
 
-            {currentScreen === 'transaction-details' && (selectedTransaction?.id || transactionId) && (
-              <div className="p-4">
-                <TransactionDetails
-                  transactionId={selectedTransaction?.id || transactionId || ''}
-                  onBack={() => {
-                    setSelectedTransaction(null);
-                    setCurrentScreen('transactions');
-                  }}
-                />
-              </div>
-            )}
-          </div>
+              {currentScreen === 'transaction-details' &&
+                (selectedTransaction?.id || transactionId) && (
+                  <TransactionDetails
+                    transactionId={selectedTransaction?.id || transactionId || ''}
+                    onBack={() => {
+                      setSelectedTransaction(null);
+                      setCurrentScreen('transactions');
+                    }}
+                  />
+                )}
+            </div>
+          </main>
         </>
       )}
     </div>

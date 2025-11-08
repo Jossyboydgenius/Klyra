@@ -10,6 +10,7 @@ import { useAccount } from 'wagmi';
 import { CRYPTO_INFO } from '@/lib/constants';
 import { ArrowUpDown, DollarSign, Coins } from 'lucide-react';
 import { useTokenPrice, useFiatRates } from '@/hooks/useTokenPrice';
+import { Badge } from './ui/badge';
 
 interface Country {
   code: string;
@@ -23,6 +24,14 @@ const COUNTRIES: Country[] = [
   { code: 'GH', name: 'Ghana', currency: 'GHS', flag: 'https://png.pngtree.com/png-vector/20240108/ourmid/pngtree-ghana-round-flag-glossy-glass-effect-vector-transparent-background-png-image_11427251.png' },
   { code: 'KE', name: 'Kenya', currency: 'KES', flag: 'https://png.pngtree.com/png-vector/20240108/ourmid/pngtree-kenya-round-flag-glossy-glass-effect-vector-transparent-background-png-image_11427461.png' }
 ];
+
+const PROVIDERS: Record<string, { label: string; channel: number }[]> = {
+  GHS: [
+    { label: 'MTN Mobile Money', channel: 1 },
+    { label: 'Vodafone Cash', channel: 6 },
+    { label: 'AirtelTigo Money', channel: 7 },
+  ],
+};
 
 export default function BuyCrypto() {
   const { address: connectedAddress } = useAccount();
@@ -38,6 +47,11 @@ export default function BuyCrypto() {
   const [inputMode, setInputMode] = useState<'crypto' | 'usd'>('usd'); // Default to USD for easier comprehension
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [phoneValidation, setPhoneValidation] = useState<{
+    status: 'idle' | 'loading' | 'success' | 'error';
+    message?: string;
+  }>({ status: 'idle' });
+  const [selectedProvider, setSelectedProvider] = useState('');
   const countryDropdownRef = useRef<HTMLDivElement>(null);
 
   // Auto-fill wallet address if connected
@@ -59,6 +73,15 @@ export default function BuyCrypto() {
   };
 
   const selectedCountryData = COUNTRIES.find(c => c.code === selectedCountry);
+  const providerOptions = useMemo(() => {
+    if (!selectedCountryData) return [];
+    return PROVIDERS[selectedCountryData.currency] || [];
+  }, [selectedCountryData]);
+
+  const selectedProviderOption = useMemo(
+    () => providerOptions.find(option => option.label === selectedProvider),
+    [providerOptions, selectedProvider],
+  );
 
   // Fetch real-time token price from CoinGecko
   const { price_usd: tokenPriceUSD, isLoading: isPriceLoading, error: priceError } = useTokenPrice(
@@ -117,6 +140,7 @@ export default function BuyCrypto() {
 
   const handleCountrySelect = (countryCode: string) => {
     setSelectedCountry(countryCode);
+    setSelectedProvider('');
     setIsCountryDropdownOpen(false);
   };
 
@@ -148,10 +172,62 @@ export default function BuyCrypto() {
       return;
     }
 
+    if (providerOptions.length > 0 && !selectedProviderOption) {
+      setError('Please select the mobile money provider for this phone number.');
+      return;
+    }
+
+    if (providerOptions.length === 0) {
+      setPhoneValidation({
+        status: 'error',
+        message: 'Account validation is not yet available for the selected country.',
+      });
+      return;
+    }
+
     setLoading(true);
     setError('');
+    setPhoneValidation({ status: 'loading' });
 
     try {
+      const sanitizedPhone = phone.replace(/\s+/g, '');
+      const validationResponse = await fetch('/api/moolre/validate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          receiver: sanitizedPhone,
+          channel: selectedProviderOption?.channel,
+          currency: selectedCountryData.currency,
+        }),
+      });
+
+      const validationData = await validationResponse.json();
+      const validationSucceeded =
+        validationData.success && validationData.data?.status === 1;
+      if (validationSucceeded) {
+        setPhoneValidation({
+          status: 'success',
+          message: validationData.data?.data,
+        });
+      } else if (validationResponse.ok) {
+        setPhoneValidation({
+          status: 'success',
+          message: 'Validation service temporarily unavailable. Proceeding without account name.',
+        });
+      } else {
+        setPhoneValidation({
+          status: 'error',
+          message:
+            validationData.data?.message ||
+            validationData.error ||
+            'Unable to confirm mobile money account.',
+        });
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch('/api/paystack/initialize', {
         method: 'POST',
         headers: {
@@ -166,9 +242,11 @@ export default function BuyCrypto() {
           crypto_amount: finalCryptoAmount,
           user_wallet_address: walletAddress,
           email: email,
-          phone: phone,
+          phone: sanitizedPhone,
           fiat_amount: parseFloat(fiatAmount || finalUsdAmount),
           fiat_currency: selectedCountryData.currency,
+          provider: selectedProviderOption?.label,
+          provider_channel: selectedProviderOption?.channel,
         }),
       });
 
@@ -433,6 +511,38 @@ export default function BuyCrypto() {
           </p>
         </div>
 
+        {providerOptions.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-white mb-2">
+              Mobile Money Provider
+            </label>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              {providerOptions.map(option => (
+                <button
+                  key={option.label}
+                  type="button"
+                  onClick={() => {
+                    setSelectedProvider(option.label);
+                    setError(prev => (prev?.toLowerCase().includes('provider') ? '' : prev));
+                  }}
+                  className={`w-full px-3 py-2 rounded-lg border transition-colors ${
+                    selectedProvider === option.label
+                      ? 'border-blue-400 bg-blue-500/20 text-white'
+                      : 'border-white/20 bg-white/5 text-indigo-100 hover:bg-white/10'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            {!selectedProvider && (
+              <p className="text-xs text-red-300 mt-1">
+                Select the provider that owns this mobile money number.
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Email Input */}
         <div>
           <label className="block text-sm font-medium text-white mb-2">
@@ -459,7 +569,10 @@ export default function BuyCrypto() {
           <input
             type="tel"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={(e) => {
+              setPhone(e.target.value);
+              setPhoneValidation({ status: 'idle' });
+            }}
             className="w-full p-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-indigo-200/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm"
             placeholder="+1234567890"
             required
@@ -467,6 +580,19 @@ export default function BuyCrypto() {
           <p className="text-sm text-indigo-200/70 mt-1">
             For payment notifications
           </p>
+          {phoneValidation.status === 'loading' && (
+            <p className="text-xs text-indigo-200/70 mt-1">Validating account…</p>
+          )}
+          {phoneValidation.status === 'success' && (
+            <p className="text-xs text-green-400 mt-1">
+              Account name: {phoneValidation.message}
+            </p>
+          )}
+          {phoneValidation.status === 'error' && (
+            <p className="text-xs text-orange-300 mt-1">
+              {phoneValidation.message}
+            </p>
+          )}
         </div>
 
         {/* Wallet Address Input */}
@@ -537,6 +663,11 @@ export default function BuyCrypto() {
                   }
                 </div>
               </>
+            )}
+            {providerOptions.length > 0 && selectedProviderOption && (
+              <div>
+                <span className="text-purple-300">Provider:</span> {selectedProviderOption.label}
+              </div>
             )}
           </div>
         </Web3Card>

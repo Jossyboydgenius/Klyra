@@ -114,28 +114,17 @@ export default function PaystackBuyCrypto() {
         setCurrentStep(2);
         
         // Initialize Paystack payment
-        const config = {
-          reference: data.data.reference,
-          email,
-          amount: Math.round(parseFloat(amount) * 100), // Convert to kobo
-          publicKey: data.data.public_key,
-          currency: selectedCountry.currency,
-          channels: paymentMethod === 'mobile_money' ? ['mobile_money', 'ussd'] : ['bank_transfer', 'ussd'],
-          metadata: {
+        const redirectUrl =
+          data.data.authorization_url ||
+          `https://checkout.paystack.com/v1/checkout.js?key=${data.data.public_key}&email=${encodeURIComponent(email)}&amount=${Math.round(parseFloat(amount) * 100)}&ref=${data.data.reference}&currency=${selectedCountry.currency}&channels=${paymentMethod === 'mobile_money' ? 'mobile_money,ussd' : 'bank_transfer,ussd'}&callback_url=${encodeURIComponent(window.location.origin + '/payment/callback')}&metadata=${encodeURIComponent(JSON.stringify({
             phone,
             crypto_asset: selectedAsset.symbol,
             crypto_amount: cryptoAmount,
             network: selectedNetwork.id
-          }
-        };
+          }))}`;
 
-        // Redirect to Paystack payment page
-        window.location.href = `https://checkout.paystack.com/v1/checkout.js?key=${data.data.public_key}&email=${encodeURIComponent(email)}&amount=${Math.round(parseFloat(amount) * 100)}&ref=${data.data.reference}&currency=${selectedCountry.currency}&channels=${paymentMethod === 'mobile_money' ? 'mobile_money,ussd' : 'bank_transfer,ussd'}&callback_url=${encodeURIComponent(window.location.origin + '/payment/callback')}&metadata=${encodeURIComponent(JSON.stringify({
-          phone,
-          crypto_asset: selectedAsset.symbol,
-          crypto_amount: cryptoAmount,
-          network: selectedNetwork.id
-        }))}`;
+        // Redirect to Paystack hosted checkout (defaults to authorization_url when provided)
+        window.location.href = redirectUrl;
       } else {
         setError(data.error || 'Payment initialization failed');
       }

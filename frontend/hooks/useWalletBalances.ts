@@ -6,9 +6,6 @@ import { getSquidTokensForChain } from '@/lib/squid-tokens';
 import { getAcrossTokensForChain } from '@/lib/across-tokens';
 import type { Chain, Token } from '@/lib/chain-data';
 
-// Maximum number of tokens to check per chain to avoid rate limiting
-const CONTRACT_BATCH_SIZE = 50; // Limit to 50 tokens total across all chains
-
 export interface TokenBalance {
   chain: Chain;
   token: Token;
@@ -36,7 +33,7 @@ export function useWalletBalances(
 ) {
   const {
     autoRefresh = true,
-    refreshInterval = 20000, // 20 seconds
+    refreshInterval = 60000, // 60 seconds
     onlyNonZero = true,
   } = options || {};
 
@@ -199,9 +196,7 @@ export function useWalletBalances(
       return a.symbol.localeCompare(b.symbol);
     });
     
-    // Limit to CONTRACT_BATCH_SIZE to avoid rate limiting
-    // This prioritizes stablecoins and popular tokens
-    return sorted.slice(0, CONTRACT_BATCH_SIZE);
+    return sorted;
   }, [allTokens]);
 
   // Build contract reads for ERC20 tokens
@@ -468,12 +463,18 @@ export function useWalletBalances(
   // Use a ref to track previous balances to prevent unnecessary re-renders
   const filteredBalances = useMemo(() => {
     if (!onlyNonZero) return allBalances;
-    return allBalances.filter(balance => parseFloat(balance.balanceFormatted) > 0);
+    return allBalances.filter(balance => {
+      try {
+        return BigInt(balance.balance) > 0n;
+      } catch {
+        return parseFloat(balance.balanceFormatted) > 0;
+      }
+    });
   }, [allBalances, onlyNonZero]);
 
   // Get initial display balances (first 10)
   const initialBalances = useMemo(() => {
-    return filteredBalances.slice(0, 10);
+    return filteredBalances;
   }, [filteredBalances]);
 
   // Only show loading state on initial load or manual refresh
@@ -487,7 +488,7 @@ export function useWalletBalances(
     isLoading: showLoading, // Only true on initial load or manual refresh - balances appear progressively otherwise
     isEmpty: filteredBalances.length === 0 && hasInitiallyLoaded, // Only empty if we've loaded and found nothing
     refresh,
-    hasMore: filteredBalances.length > 10,
+    hasMore: false,
   };
 }
 

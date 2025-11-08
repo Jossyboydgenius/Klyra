@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { projectId } from '../lib/supabase/info';
 import { PAYMENT_METHOD_TYPES } from '../lib/constants';
 import { Card } from './ui/card';
@@ -33,13 +33,73 @@ export const AddPaymentMethod: React.FC<AddPaymentMethodProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [step, setStep] = useState(1); // 1: form, 2: success
+  const [isValidatingAccount, setIsValidatingAccount] = useState(false);
+  const [validationMessage, setValidationMessage] = useState<{
+    status: 'idle' | 'success' | 'error';
+    message?: string;
+  }>({ status: 'idle' });
 
-  const typeInfo = PAYMENT_METHOD_TYPES.find(pmt => pmt.type === type);
+const PROVIDER_CHANNEL_MAP: Record<string, number> = {
+  'MTN': 1,
+  'MTN MOMO': 1,
+  'MTN MOBILE MONEY': 1,
+  'MTN MOBILE MONEY LIMITED': 1,
+  'MTN MOBILE MONEY (GHANA)': 1,
+  'VODAFONE': 6,
+  'VODAFONE CASH': 6,
+  'VODAFONE GHANA': 6,
+  'AIRTELTIGO': 7,
+  'AIRTELTIGO MONEY': 7,
+  'AIRTEL TIGO': 7,
+  'AIRTELTIGO GHANA': 7,
+};
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    setError('');
-  };
+const normalizeProvider = (provider?: string) =>
+  provider?.trim().toUpperCase() ?? '';
+
+const resolveProviderChannel = (provider?: string) =>
+  PROVIDER_CHANNEL_MAP[normalizeProvider(provider)];
+
+const typeInfo = PAYMENT_METHOD_TYPES.find(pmt => pmt.type === type);
+
+const canValidateAccount = useMemo(() => {
+  if (type !== 'momo') return false;
+  const channel =
+    resolveProviderChannel(formData.provider) ??
+    (formData.provider_channel
+      ? Number(formData.provider_channel)
+      : undefined);
+  return Boolean(channel && formData.phone);
+}, [formData.provider, formData.provider_channel, formData.phone, type]);
+
+const handleInputChange = (field: string, value: string) => {
+  setFormData(prev => {
+    const next = { ...prev, [field]: value };
+
+    if (field === 'provider') {
+      const channel = resolveProviderChannel(value);
+      if (channel) {
+        next.provider_channel = channel.toString();
+      } else {
+        delete next.provider_channel;
+      }
+      delete next.name;
+      delete next.validated_name;
+      delete next.validation_status;
+    }
+
+    if (field === 'phone') {
+      delete next.validated_name;
+      delete next.validation_status;
+    }
+
+    return next;
+  });
+  setError('');
+  if (['provider', 'phone', 'name'].includes(field)) {
+    setValidationMessage({ status: 'idle' });
+  }
+};
 
   const validateForm = () => {
     if (!typeInfo) return false;
@@ -71,10 +131,110 @@ export const AddPaymentMethod: React.FC<AddPaymentMethodProps> = ({
         setError('Please enter a valid Ghanaian phone number');
         return false;
       }
+    const channel =
+      resolveProviderChannel(formData.provider) ||
+      (formData.provider_channel
+        ? Number(formData.provider_channel)
+        : undefined);
+    if (!channel) {
+      setError('Please select a supported mobile money provider');
+      return false;
+    }
+      if (!formData.name) {
+        setError('Validate the mobile money account to fetch the account name.');
+        return false;
+      }
     }
     
     return true;
   };
+
+  const normalizePhone = (value?: string) =>
+    value?.replace(/[^\d+]/g, '').trim() ?? '';
+
+const handleValidateAccount = async () => {
+  if (!canValidateAccount) {
+    setValidationMessage({
+      status: 'error',
+      message: 'Select a provider and enter the phone number before validating.',
+    });
+    return;
+  }
+
+  const channel =
+    resolveProviderChannel(formData.provider) ??
+    (formData.provider_channel
+      ? Number(formData.provider_channel)
+      : undefined);
+
+  if (!channel) {
+    setValidationMessage({
+      status: 'error',
+      message:
+        'Unknown provider. Please choose MTN, Vodafone, or AirtelTigo for validation.',
+    });
+    return;
+  }
+
+  setIsValidatingAccount(true);
+  setValidationMessage({ status: 'idle' });
+
+  try {
+    const response = await fetch('/api/moolre/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        receiver: normalizePhone(formData.phone),
+        channel,
+        currency: 'GHS',
+      }),
+    });
+
+    const data = await response.json();
+
+    if (data.success && data.data?.status === 1) {
+      const accountName =
+        typeof data.data.data === 'string' ? data.data.data : '';
+      setFormData(prev => ({
+        ...prev,
+        name: accountName,
+        validated_name: accountName,
+        validation_status: 'verified',
+        provider_channel: channel.toString(),
+      }));
+      setValidationMessage({
+        status: 'success',
+        message: accountName || 'Account verified successfully.',
+      });
+    } else if (response.ok) {
+      setValidationMessage({
+        status: 'success',
+        message: 'Validation service temporarily unavailable. Proceeding without account name.',
+      });
+      setFormData(prev => ({
+        ...prev,
+        provider_channel: channel.toString(),
+      }));
+    } else {
+      setValidationMessage({
+        status: 'error',
+        message:
+          data.data?.message ||
+          data.error ||
+          'Unable to verify this account. Please confirm the number and network.',
+      });
+    }
+  } catch (validationError) {
+    console.error('Account validation error:', validationError);
+    setValidationMessage({
+      status: 'error',
+      message:
+        'We could not reach the validation service. Please check your details and try again.',
+    });
+  } finally {
+    setIsValidatingAccount(false);
+  }
+};
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,6 +283,25 @@ export const AddPaymentMethod: React.FC<AddPaymentMethodProps> = ({
       const data = await response.json();
 
       if (response.ok) {
+        if (type === 'momo' && formData.phone) {
+          const phone = normalizePhone(formData.phone);
+          const accountName =
+            formData.name || validationMessage.message || 'your account';
+          const smsMessage = `Klyra: ${accountName} (${phone}) has been linked as a payout account. If this wasn't you, please contact support immediately.`;
+          try {
+            await fetch('/api/moolre/sms', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                recipient: phone,
+                message: smsMessage,
+              }),
+            });
+          } catch (smsError) {
+            console.error('SMS notification failed:', smsError);
+          }
+        }
+
         setStep(2);
         setTimeout(() => {
           onSuccess();
@@ -241,45 +420,79 @@ export const AddPaymentMethod: React.FC<AddPaymentMethodProps> = ({
                     </SelectContent>
                   </Select>
                 ) : (
-                  <Input
-                    id={field.name}
-                    type={field.type}
-                    placeholder={field.placeholder}
-                    value={formData[field.name] || ''}
-                    onChange={(e) => {
-                      let value = e.target.value;
-                      
-                      // Special formatting for card number
-                      if (field.name === 'card_number') {
-                        value = formatCardNumber(value);
-                        if (value.replace(/\s/g, '').length > 16) return;
-                      }
-                      
-                      // Special formatting for expiry date
-                      if (field.name === 'expiry') {
-                        value = formatExpiryDate(value);
-                        if (value.length > 5) return;
-                      }
-                      
-                      // CVV limit
-                      if (field.name === 'cvv' && value.length > 4) return;
-                      
-                      handleInputChange(field.name, value);
-                    }}
-                    required={field.name !== 'branch'}
-                    maxLength={
-                      field.name === 'card_number' ? 19 : 
-                      field.name === 'expiry' ? 5 :
-                      field.name === 'cvv' ? 4 : undefined
-                    }
-                  />
+                  <>
+                    {type === 'momo' && field.name === 'name' ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Input
+                            id={field.name}
+                            type={field.type}
+                            placeholder={field.placeholder}
+                            value={formData[field.name] || ''}
+                            onChange={(e) => handleInputChange(field.name, e.target.value)}
+                            required
+                          />
+                          <Button
+                            type="button"
+                            onClick={handleValidateAccount}
+                            disabled={isValidatingAccount || !canValidateAccount}
+                          >
+                            {isValidatingAccount ? 'Validating...' : 'Validate'}
+                          </Button>
+                        </div>
+                        {validationMessage.status === 'success' && (
+                          <p className="text-sm text-green-600">
+                            Account name: {validationMessage.message}
+                          </p>
+                        )}
+                        {validationMessage.status === 'error' && (
+                          <p className="text-sm text-red-600">
+                            {validationMessage.message}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <Input
+                        id={field.name}
+                        type={field.type}
+                        placeholder={field.placeholder}
+                        value={formData[field.name] || ''}
+                        onChange={(e) => {
+                          let value = e.target.value;
+
+                          // Special formatting for card number
+                          if (field.name === 'card_number') {
+                            value = formatCardNumber(value);
+                            if (value.replace(/\s/g, '').length > 16) return;
+                          }
+
+                          // Special formatting for expiry date
+                          if (field.name === 'expiry') {
+                            value = formatExpiryDate(value);
+                            if (value.length > 5) return;
+                          }
+
+                          // CVV limit
+                          if (field.name === 'cvv' && value.length > 4) return;
+
+                          handleInputChange(field.name, value);
+                        }}
+                        required={field.name !== 'branch'}
+                        maxLength={
+                          field.name === 'card_number' ? 19 :
+                          field.name === 'expiry' ? 5 :
+                          field.name === 'cvv' ? 4 : undefined
+                        }
+                      />
+                    )}
+                  </>
                 )}
               </div>
             ))}
 
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg flex items-start gap-2">
-                <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                <AlertCircle className="w-5 h-5 mt-0.5 shrink-0" />
                 <span className="text-sm">{error}</span>
               </div>
             )}
@@ -291,7 +504,7 @@ export const AddPaymentMethod: React.FC<AddPaymentMethodProps> = ({
         </Card>
 
         {/* Security Notice */}
-        <Card className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+        <Card className="p-4 bg-linear-to-r from-blue-50 to-indigo-50 border-blue-200">
           <div className="flex items-start gap-3">
             <Shield className="w-5 h-5 text-blue-600 mt-0.5" />
             <div>
