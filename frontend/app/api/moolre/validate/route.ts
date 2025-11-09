@@ -11,39 +11,75 @@ const PROVIDER_CHANNEL_MAP: Record<string, number> = {
   'AIRTELTIGO': 7,
   'AIRTEL TIGO': 7,
   'BANK TRANSFER': 2,
+  BANK: 2,
 };
+
+const BANK_CHANNEL_ID = 2;
 
 const normalizeProvider = (provider?: string) =>
   provider?.trim().toUpperCase() ?? '';
+
+const parseChannel = (value: unknown): number | undefined => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+
+  return undefined;
+};
+
+const normalizeString = (value?: unknown) =>
+  typeof value === 'string' ? value.trim() : undefined;
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const {
+      accountNumber,
       receiver,
       channel,
       provider,
+      bankCode,
       currency = 'GHS',
       sublistId,
     }: {
+      accountNumber?: string;
       receiver?: string;
-      channel?: number;
+      channel?: number | string;
       provider?: string;
+      bankCode?: string;
       currency?: string;
       sublistId?: string;
     } = body ?? {};
 
-    if (!receiver || typeof receiver !== 'string') {
+    const normalizedAccountNumber = normalizeString(accountNumber);
+    const normalizedReceiver = normalizeString(receiver);
+    const targetReceiver = normalizedAccountNumber ?? normalizedReceiver;
+
+    if (!targetReceiver) {
       return NextResponse.json(
         { success: false, error: 'Receiver (account) is required.' },
         { status: 400 },
       );
     }
 
+    const normalizedProvider = normalizeProvider(provider);
+    const providedChannel = parseChannel(channel);
+    const normalizedBankCode = normalizeString(bankCode);
+    const normalizedSublistId = normalizeString(sublistId);
+
     const resolvedChannel =
-      channel ??
-      PROVIDER_CHANNEL_MAP[normalizeProvider(provider)] ??
-      undefined;
+      providedChannel ??
+      (normalizedProvider
+        ? PROVIDER_CHANNEL_MAP[normalizedProvider]
+        : undefined) ??
+      (normalizedBankCode ? BANK_CHANNEL_ID : undefined);
 
     if (!resolvedChannel) {
       return NextResponse.json(
@@ -57,10 +93,13 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await validateAccount({
-      receiver,
+      receiver: targetReceiver,
       channel: resolvedChannel,
       currency,
-      sublistId,
+      sublistId:
+        normalizedBankCode && resolvedChannel === BANK_CHANNEL_ID
+          ? normalizedBankCode
+          : normalizedSublistId,
     });
 
     return NextResponse.json({
@@ -78,4 +117,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
