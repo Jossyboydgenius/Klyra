@@ -8,7 +8,7 @@ import { projectId, publicAnonKey } from '../lib/supabase/info';
 import { OnboardingFlow } from '../components/OnboardingFlow';
 import { AuthScreen } from '../components/AuthScreen';
 import { SplashScreen } from '../components/SplashScreen';
-// import KYCScreen from '../components/KYCScreen';
+import { KYCScreen } from '../components/KYCScreen';
 import { Dashboard } from '../components/Dashboard';
 import { PaymentMethods } from '../components/PaymentMethods';
 import BuyCrypto from '../components/BuyCrypto';
@@ -21,6 +21,7 @@ import { NetworkTokenAdder } from '../components/NetworkTokenAdder';
 import { TransactionsList } from '../components/TransactionsList';
 import { TransactionDetails } from '../components/TransactionDetails';
 import { Button } from '../components/ui/button';
+import { Web3Container, Web3Card } from '../components/Web3Theme';
 import { ArrowLeft, User, LogOut, ChevronDown, Wallet, Settings } from 'lucide-react';
 import { useAccount, useDisconnect } from 'wagmi';
 import { Transaction } from '@/lib/database/supabase-client';
@@ -61,21 +62,64 @@ const App: React.FC = () => {
   const userDropdownRef = useRef<HTMLDivElement>(null);
   const { disconnect } = useDisconnect();
 
+  const loadUserData = useCallback(async (token: string) => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(`https://${projectId}.supabase.co/functions/v1/${process.env.NEXT_PUBLIC_SUPABASE_FUNCTION_NAME}/user/profile`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.profile);
+        setBalances(data.balances);
+        setPaymentMethods(data.paymentMethods || []);
+
+        // Set screen based on KYC status
+        if (data.profile.kyc_status === 'pending' || data.profile.kyc_status === null || data.profile.kyc_status === undefined) {
+          setCurrentScreen('kyc');
+        } else {
+          setCurrentScreen('dashboard');
+        }
+      } else {
+        console.error('Failed to load user data:', response.status, response.statusText);
+        setCurrentScreen('auth');
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error);
+      setCurrentScreen('auth');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const checkExistingSession = useCallback(async () => {
     try {
+      setIsLoading(true);
       const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error('Session check error:', error);
+        setCurrentScreen('onboarding');
+        setIsLoading(false);
+        return;
+      }
+      
       if (session?.access_token) {
         setAccessToken(session.access_token);
         await loadUserData(session.access_token);
       } else {
         setCurrentScreen('onboarding');
+        setIsLoading(false);
       }
     } catch (error) {
-      console.log('Session check error:', error);
-    } finally {
+      console.error('Session check error:', error);
+      setCurrentScreen('onboarding');
       setIsLoading(false);
     }
-  }, []);
+  }, [loadUserData]);
 
   useEffect(() => {
     checkExistingSession();
@@ -102,40 +146,11 @@ const App: React.FC = () => {
     };
   }, [showUserDropdown]);
 
-  const loadUserData = async (token: string) => {
-    try {
-      const response = await fetch(`https://${projectId}.supabase.co/functions/v1/${process.env.NEXT_PUBLIC_SUPABASE_FUNCTION_NAME}/user/profile`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
 
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data.profile);
-        setBalances(data.balances);
-        setPaymentMethods(data.paymentMethods || []);
-
-        if (data.profile.kyc_status === 'pending') {
-          setCurrentScreen('kyc');
-        } else {
-          setCurrentScreen('dashboard');
-        }
-      } else {
-        console.log('Failed to load user data');
-        setCurrentScreen('auth');
-      }
-    } catch (error) {
-      console.log('Error loading user data:', error);
-      setCurrentScreen('auth');
-    }
-  };
-
-  const handleAuth = async (token: string) => {
+  const handleAuth = useCallback(async (token: string) => {
     setAccessToken(token);
     await loadUserData(token);
-  };
+  }, [loadUserData]);
 
   const handleKYCComplete = () => {
     setCurrentScreen('dashboard');
@@ -153,11 +168,11 @@ const App: React.FC = () => {
     setCurrentScreen('onboarding');
   };
 
-  const refreshUserData = async () => {
+  const refreshUserData = useCallback(async () => {
     if (accessToken) {
       await loadUserData(accessToken);
     }
-  };
+  }, [accessToken, loadUserData]);
 
   const getScreenTitle = () => {
     const titles: { [key: string]: string } = {
@@ -184,7 +199,7 @@ const App: React.FC = () => {
       <header className="sticky top-0 z-50 bg-linear-to-r from-indigo-600 via-purple-600 to-indigo-600 border-b border-indigo-400/30 backdrop-blur-md shadow-lg">
         <div className="px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {currentScreen !== 'dashboard' && (
+            {currentScreen !== 'dashboard' && currentScreen !== 'kyc' && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -193,6 +208,11 @@ const App: React.FC = () => {
               >
                 <ArrowLeft className="w-5 h-5" />
               </Button>
+            )}
+            {currentScreen === 'kyc' && (
+              <div className="text-xs text-indigo-200/60 bg-yellow-500/20 border border-yellow-400/30 rounded px-3 py-1">
+                Verification Required
+              </div>
             )}
             <div className="flex flex-col">
               <h1 className="text-lg font-bold text-white">
@@ -333,6 +353,31 @@ const App: React.FC = () => {
 
               {currentScreen === 'auth' && (
                 <AuthScreen onAuthSuccess={handleAuth} />
+              )}
+
+              {currentScreen === 'kyc' && (
+                accessToken ? (
+                  <KYCScreen
+                    accessToken={accessToken}
+                    onComplete={async () => {
+                      // Reload user data to get updated KYC status
+                      if (accessToken) {
+                        await loadUserData(accessToken);
+                      } else {
+                        handleKYCComplete();
+                      }
+                    }}
+                  />
+                ) : (
+                  <Web3Container>
+                    <div className="min-h-[60vh] flex items-center justify-center">
+                      <Web3Card className="max-w-md w-full text-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-400 mx-auto mb-4"></div>
+                        <p className="text-indigo-200/80">Loading verification...</p>
+                      </Web3Card>
+                    </div>
+                  </Web3Container>
+                )
               )}
 
               {currentScreen === 'dashboard' && user && balances && (

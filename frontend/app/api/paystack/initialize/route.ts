@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { paystackService } from '@/lib/paystack/paystack-client';
-import { transactionService } from '@/lib/database/supabase-client';
+import { transactionService, Transaction } from '@/lib/database/supabase-client';
 import { CDPService } from '@/lib/cdp/cdp-client';
 
 export async function POST(request: NextRequest) {
@@ -108,8 +108,8 @@ export async function POST(request: NextRequest) {
     console.log('[Paystack Initialize] Creating transaction record in database...');
     // Create transaction record in database BEFORE redirecting to Paystack
     // This ensures we have the reference stored and can verify the payment later
-    // Build transaction object with only core required fields first
-    const coreTransactionData: any = {
+    // Build transaction object with required fields
+    const coreTransactionData: Omit<Transaction, 'id' | 'created_at' | 'updated_at'> = {
       user_email: email,
       user_phone: phone,
       user_wallet_address: user_wallet_address,
@@ -131,26 +131,14 @@ export async function POST(request: NextRequest) {
     // Add optional fields only if they have values (to handle missing columns gracefully)
     // These fields may not exist in the database if migration hasn't been run
     // We'll try with all fields first, then fall back to core fields if columns are missing
-    const transactionWithOptionalFields: Record<string, any> = {
+    const transactionWithOptionalFields: Omit<Transaction, 'id' | 'created_at' | 'updated_at'> = {
       ...coreTransactionData,
+      // Add optional fields conditionally
+      ...(chain_id != null && chain_id !== '' && { chain_id: chain_id.toString() }),
+      ...(token_address != null && token_address !== '' && { token_address }),
+      ...(provider != null && provider !== '' && { provider }),
+      ...(provider_channel != null && provider_channel !== '' && { provider_channel: provider_channel.toString() }),
     };
-    
-    // Only add optional fields if they have values (not undefined/null/empty)
-    if (chain_id != null && chain_id !== '') {
-      transactionWithOptionalFields.chain_id = chain_id.toString();
-    }
-    
-    if (token_address != null && token_address !== '') {
-      transactionWithOptionalFields.token_address = token_address;
-    }
-    
-    if (provider != null && provider !== '') {
-      transactionWithOptionalFields.provider = provider;
-    }
-    
-    if (provider_channel != null && provider_channel !== '') {
-      transactionWithOptionalFields.provider_channel = provider_channel.toString();
-    }
 
     // Try creating transaction with all fields first
     let transaction;
@@ -169,15 +157,8 @@ export async function POST(request: NextRequest) {
       if (dbError?.code === 'PGRST204') {
         console.log('[Paystack Initialize] Missing column detected (PGRST204), retrying with core fields only...');
         try {
-          // Create a clean core transaction object without optional fields
-          const coreOnly: Record<string, any> = {};
-          Object.keys(coreTransactionData).forEach(key => {
-            if (coreTransactionData[key] !== undefined && coreTransactionData[key] !== null) {
-              coreOnly[key] = coreTransactionData[key];
-            }
-          });
-          
-          transaction = await transactionService.createTransaction(coreOnly);
+          // Create transaction with only core required fields (no optional fields that might not exist)
+          transaction = await transactionService.createTransaction(coreTransactionData);
           console.log('[Paystack Initialize] Transaction created with core fields only:', transaction.id);
           transactionCreated = true;
         } catch (retryError: any) {
@@ -215,7 +196,7 @@ export async function POST(request: NextRequest) {
       authorization_url: paystackResult.data.authorization_url,
       reference: paystackResult.data.reference,
       access_code: paystackResult.data.access_code,
-      transaction_id: transaction.id
+      ...(transaction?.id && { transaction_id: transaction.id })
     });
   } catch (error: any) {
     console.error('Paystack initialization error:', error);
