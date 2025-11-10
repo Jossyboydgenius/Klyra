@@ -109,41 +109,80 @@ const getSmsCredentials = () => {
   return { senderId, smsApiKey };
 };
 
+/**
+ * Validates a mobile money or bank account with Moolre API
+ * 
+ * NOTE: This function adds 'type: 1' and 'accountnumber' from environment variables
+ * to the payload before sending to Moolre. The frontend only sends receiver, channel, and currency.
+ * 
+ * Required payload fields sent to Moolre:
+ * - type: 1 (added here)
+ * - receiver: Mobile money number or bank account number
+ * - channel: Channel ID (1=MTN, 6=Vodafone, 7=AirtelTigo, 2=Bank)
+ * - currency: Currency code (GHS, NGN, etc.)
+ * - accountnumber: Moolre account number (added from env vars here)
+ * - sublistid: Optional, only for bank transfers (channel 2)
+ */
 export async function validateAccount({
   receiver,
   channel,
   currency = 'GHS',
   sublistId,
 }: ValidateAccountParams): Promise<ValidateAccountResponse> {
+  // Get credentials first
   const { baseUrl, apiUser, apiKey, accountNumber } = getCredentials();
 
   // Ensure channel is a number
   const channelNumber = typeof channel === 'string' ? parseInt(channel, 10) : channel;
   
-  // Construct payload exactly as Moolre API expects
-  const payload: {
-    type: number;
-    receiver: string;
-    channel: number;
-    currency: string;
-    accountnumber: string;
-    sublistid?: string;
-  } = {
-    type: 1,
-    receiver: String(receiver).trim(),
-    channel: channelNumber,
-    currency: String(currency).toUpperCase(),
-    accountnumber: String(accountNumber).trim(),
+  // Validate required fields
+  if (!receiver || String(receiver).trim() === '') {
+    throw new Error('Receiver is required');
+  }
+  
+  if (!channelNumber || isNaN(channelNumber)) {
+    throw new Error('Valid channel is required');
+  }
+  
+  if (!accountNumber || accountNumber.trim() === '') {
+    throw new Error('Moolre account number is not configured. Set MOOLRE_ACCOUNT_NUMBER environment variable.');
+  }
+  
+  // Construct payload EXACTLY as Moolre API expects - ALL 5 REQUIRED FIELDS
+  const payload = {
+    type: 1,  // Required: ID of the account status function
+    receiver: String(receiver).trim(),  // Required: Mobile money number or bank account number
+    channel: channelNumber,  // Required: Channel ID (1=MTN, 6=Vodafone, 7=AirtelTigo, 2=Bank)
+    currency: String(currency).toUpperCase(),  // Required: Currency (GHS, NGN, etc.)
+    accountnumber: String(accountNumber).trim(),  // Required: Your Moolre account number
   };
 
-  // Add sublistid only for bank transfers (channel 2)
+  // Add sublistid only for bank transfers (channel 2) - this is optional
   if (sublistId && channelNumber === 2) {
-    payload.sublistid = String(sublistId).trim();
+    (payload as typeof payload & { sublistid: string }).sublistid = String(sublistId).trim();
   }
 
-  // Log the payload for debugging (remove in production if needed)
-  console.log('[Moolre] Validation payload:', JSON.stringify(payload, null, 2));
+  // Verify payload has all 5 required fields before sending
+  if (!payload.type || !payload.receiver || !payload.channel || !payload.currency || !payload.accountnumber) {
+    throw new Error(
+      `Missing required fields in payload. Expected: type, receiver, channel, currency, accountnumber. ` +
+      `Got: ${JSON.stringify(payload)}`
+    );
+  }
 
+  // Log the complete payload being sent to Moolre
+  console.log('[Moolre Client] ========================================');
+  console.log('[Moolre Client] Sending validation request to Moolre');
+  console.log('[Moolre Client] URL:', `${baseUrl}/open/transact/validate`);
+  console.log('[Moolre Client] Payload (ALL 5 FIELDS):', JSON.stringify(payload, null, 2));
+  console.log('[Moolre Client] Headers:', {
+    'Content-Type': 'application/json',
+    'X-API-USER': apiUser,
+    'X-API-KEY': apiKey ? `${apiKey.substring(0, 8)}...` : 'MISSING',
+  });
+  console.log('[Moolre Client] ========================================');
+
+  // Send request to Moolre API
   const response = await fetch(`${baseUrl}/open/transact/validate`, {
     method: 'POST',
     headers: {
@@ -154,14 +193,17 @@ export async function validateAccount({
     body: JSON.stringify(payload),
   });
 
+  const responseText = await response.text();
+  console.log('[Moolre Client] Response status:', response.status);
+  console.log('[Moolre Client] Response body:', responseText);
+
   if (!response.ok) {
-    const text = await response.text();
     throw new Error(
-      `Moolre validation failed with status ${response.status}: ${text}`,
+      `Moolre validation failed with status ${response.status}: ${responseText}`,
     );
   }
 
-  const data: ValidateAccountResponse = await response.json();
+  const data: ValidateAccountResponse = JSON.parse(responseText);
   return data;
 }
 

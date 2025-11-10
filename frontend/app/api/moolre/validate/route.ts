@@ -40,6 +40,8 @@ const normalizeString = (value?: unknown) =>
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    console.log('[Moolre API Route] Received request body:', JSON.stringify(body, null, 2));
+    
     const {
       accountNumber,
       receiver,
@@ -92,8 +94,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Log the request parameters for debugging
-    console.log('[Moolre API Route] Request params:', {
+    // Log the request parameters that will be sent to Moolre client
+    console.log('[Moolre API Route] Calling validateAccount with:', {
       receiver: targetReceiver,
       channel: resolvedChannel,
       currency,
@@ -103,6 +105,7 @@ export async function POST(request: NextRequest) {
           : normalizedSublistId,
     });
 
+    // This call will add type: 1 and accountnumber from env vars
     const result = await validateAccount({
       receiver: targetReceiver,
       channel: resolvedChannel,
@@ -112,6 +115,8 @@ export async function POST(request: NextRequest) {
           ? normalizedBankCode
           : normalizedSublistId,
     });
+
+    console.log('[Moolre API Route] Validation result:', JSON.stringify(result, null, 2));
 
     return NextResponse.json({
       success: result.status === 1,
@@ -124,10 +129,14 @@ export async function POST(request: NextRequest) {
     
     // Check if it's a credentials error
     if (errorMessage.includes('Missing Moolre credentials')) {
+      console.error('[Moolre API Route] Missing credentials. Check environment variables:');
+      console.error('  - MOOLRE_USERNAME or NEXT_PUBLIC_MOOLRE_USERNAME');
+      console.error('  - MOOLRE_PRIVATE_API_KEY or NEXT_PUBLIC_MOOLRE_PRIVATE_API_KEY');
+      console.error('  - MOOLRE_ACCOUNT_NUMBER or NEXT_PUBLIC_MOOLRE_ACCOUNT_NUMBER');
       return NextResponse.json(
         {
           success: false,
-          error: 'Server configuration error: Moolre credentials are not configured.',
+          error: 'Server configuration error: Moolre credentials are not configured. Check server logs for details.',
         },
         { status: 500 },
       );
