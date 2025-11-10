@@ -92,6 +92,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Log the request parameters for debugging
+    console.log('[Moolre API Route] Request params:', {
+      receiver: targetReceiver,
+      channel: resolvedChannel,
+      currency,
+      sublistId:
+        normalizedBankCode && resolvedChannel === BANK_CHANNEL_ID
+          ? normalizedBankCode
+          : normalizedSublistId,
+    });
+
     const result = await validateAccount({
       receiver: targetReceiver,
       channel: resolvedChannel,
@@ -107,11 +118,25 @@ export async function POST(request: NextRequest) {
       data: result,
     });
   } catch (error) {
-    console.error('Moolre validation error', error);
+    console.error('[Moolre API Route] Validation error:', error);
+    const errorMessage =
+      error instanceof Error ? error.message : 'Account validation failed. Please try again later.';
+    
+    // Check if it's a credentials error
+    if (errorMessage.includes('Missing Moolre credentials')) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Server configuration error: Moolre credentials are not configured.',
+        },
+        { status: 500 },
+      );
+    }
+    
     return NextResponse.json(
       {
         success: false,
-        error: 'Account validation failed. Please try again later.',
+        error: errorMessage,
       },
       { status: 500 },
     );

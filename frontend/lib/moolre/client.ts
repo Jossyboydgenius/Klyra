@@ -117,17 +117,32 @@ export async function validateAccount({
 }: ValidateAccountParams): Promise<ValidateAccountResponse> {
   const { baseUrl, apiUser, apiKey, accountNumber } = getCredentials();
 
-  const payload: Record<string, unknown> = {
+  // Ensure channel is a number
+  const channelNumber = typeof channel === 'string' ? parseInt(channel, 10) : channel;
+  
+  // Construct payload exactly as Moolre API expects
+  const payload: {
+    type: number;
+    receiver: string;
+    channel: number;
+    currency: string;
+    accountnumber: string;
+    sublistid?: string;
+  } = {
     type: 1,
-    receiver,
-    channel,
-    currency,
-    accountnumber: accountNumber,
+    receiver: String(receiver).trim(),
+    channel: channelNumber,
+    currency: String(currency).toUpperCase(),
+    accountnumber: String(accountNumber).trim(),
   };
 
-  if (sublistId) {
-    payload.sublistid = sublistId;
+  // Add sublistid only for bank transfers (channel 2)
+  if (sublistId && channelNumber === 2) {
+    payload.sublistid = String(sublistId).trim();
   }
+
+  // Log the payload for debugging (remove in production if needed)
+  console.log('[Moolre] Validation payload:', JSON.stringify(payload, null, 2));
 
   const response = await fetch(`${baseUrl}/open/transact/validate`, {
     method: 'POST',
