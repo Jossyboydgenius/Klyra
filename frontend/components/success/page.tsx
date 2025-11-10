@@ -130,14 +130,14 @@ export default function SuccessPage() {
           {/* Action Buttons */}
           <div className="space-y-3">
             <Link
-              href="/dashboard"
+              href="/"
               className="block w-full p-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
             >
               Go to Dashboard
             </Link>
             
             <Link
-              href="/buy-crypto"
+              href="/"
               className="block w-full p-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
             >
               Buy More Crypto

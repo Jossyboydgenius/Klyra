@@ -105,51 +105,109 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Creating transaction record in database...');
-    // Create transaction record in database
+    console.log('[Paystack Initialize] Creating transaction record in database...');
+    // Create transaction record in database BEFORE redirecting to Paystack
+    // This ensures we have the reference stored and can verify the payment later
+    // Build transaction object with only core required fields first
+    const coreTransactionData: any = {
+      user_email: email,
+      user_phone: phone,
+      user_wallet_address: user_wallet_address,
+      paystack_reference: paystackResult.data.reference,
+      paystack_access_code: paystackResult.data.access_code,
+      fiat_amount: fiat_amount,
+      fiat_currency: fiat_currency,
+      payment_status: 'pending',
+      payment_method: 'mobile_money', // Default, can be updated after payment
+      crypto_asset: crypto_asset,
+      crypto_amount: crypto_amount,
+      network: network,
+      transaction_type: transactionType,
+      onramp_status: 'pending',
+      transfer_status: 'pending',
+      retry_count: 0,
+    };
+
+    // Add optional fields only if they have values (to handle missing columns gracefully)
+    // These fields may not exist in the database if migration hasn't been run
+    // We'll try with all fields first, then fall back to core fields if columns are missing
+    const transactionWithOptionalFields: Record<string, any> = {
+      ...coreTransactionData,
+    };
+    
+    // Only add optional fields if they have values (not undefined/null/empty)
+    if (chain_id != null && chain_id !== '') {
+      transactionWithOptionalFields.chain_id = chain_id.toString();
+    }
+    
+    if (token_address != null && token_address !== '') {
+      transactionWithOptionalFields.token_address = token_address;
+    }
+    
+    if (provider != null && provider !== '') {
+      transactionWithOptionalFields.provider = provider;
+    }
+    
+    if (provider_channel != null && provider_channel !== '') {
+      transactionWithOptionalFields.provider_channel = provider_channel.toString();
+    }
+
+    // Try creating transaction with all fields first
     let transaction;
+    let transactionCreated = false;
+    
     try {
-      transaction = await transactionService.createTransaction({
-        user_email: email,
-        user_phone: phone,
-        user_wallet_address: user_wallet_address,
-        paystack_reference: paystackResult.data.reference,
-        paystack_access_code: paystackResult.data.access_code,
-        fiat_amount: fiat_amount,
-        fiat_currency: fiat_currency,
-        payment_status: 'pending',
-        payment_method: 'mobile_money', // Default, can be updated
-        crypto_asset: crypto_asset,
-        crypto_amount: crypto_amount,
-        network: network,
-        chain_id: chain_id?.toString(),
-        token_address: token_address,
-        transaction_type: transactionType,
-        onramp_status: 'pending',
-        transfer_status: 'pending',
-        retry_count: 0,
-        provider,
-        provider_channel: provider_channel?.toString(),
-      });
-      console.log('Transaction record created:', transaction.id);
+      transaction = await transactionService.createTransaction(transactionWithOptionalFields);
+      console.log('[Paystack Initialize] Transaction record created successfully:', transaction.id);
+      transactionCreated = true;
     } catch (dbError: any) {
-      console.error('Database error creating transaction:', dbError);
-      // Even if DB fails, we can still return the Paystack URL
-      // The webhook will handle creating the record if needed
-      return NextResponse.json(
-        { 
-          success: true,
-          authorization_url: paystackResult.data.authorization_url,
-          reference: paystackResult.data.reference,
-          access_code: paystackResult.data.access_code,
-          warning: 'Transaction record creation failed, but payment can proceed',
-          details: process.env.NODE_ENV === 'development' ? {
-            dbError: dbError?.message,
-            code: dbError?.code
-          } : undefined
-        },
-        { status: 200 }
-      );
+      console.error('[Paystack Initialize] Database error creating transaction:', dbError);
+      console.error('[Paystack Initialize] Error code:', dbError?.code);
+      console.error('[Paystack Initialize] Error message:', dbError?.message);
+      
+      // If error is due to missing columns (PGRST204), try with core fields only
+      if (dbError?.code === 'PGRST204') {
+        console.log('[Paystack Initialize] Missing column detected (PGRST204), retrying with core fields only...');
+        try {
+          // Create a clean core transaction object without optional fields
+          const coreOnly: Record<string, any> = {};
+          Object.keys(coreTransactionData).forEach(key => {
+            if (coreTransactionData[key] !== undefined && coreTransactionData[key] !== null) {
+              coreOnly[key] = coreTransactionData[key];
+            }
+          });
+          
+          transaction = await transactionService.createTransaction(coreOnly);
+          console.log('[Paystack Initialize] Transaction created with core fields only:', transaction.id);
+          transactionCreated = true;
+        } catch (retryError: any) {
+          console.error('[Paystack Initialize] Failed to create transaction even with core fields:', retryError);
+          console.error('[Paystack Initialize] Retry error code:', retryError?.code);
+          console.error('[Paystack Initialize] Retry error message:', retryError?.message);
+          // Fall through to error handling
+        }
+      }
+      
+      // If transaction creation still fails, don't expose database errors to client
+      if (!transactionCreated) {
+        // Log full error details server-side for debugging (never sent to client)
+        console.error('[Paystack Initialize] Full error details (server-side only):', {
+          code: dbError?.code,
+          message: dbError?.message,
+          details: dbError?.details,
+          hint: dbError?.hint,
+        });
+        
+        // Return generic error to client (don't expose database schema details)
+        // This prevents information leakage about database structure
+        return NextResponse.json(
+          { 
+            success: false,
+            error: 'Unable to process your request at this time. Please try again later or contact support.',
+          },
+          { status: 500 }
+        );
+      }
     }
 
     return NextResponse.json({

@@ -49,7 +49,7 @@ export default function PaymentCallback() {
   };
 
   const handleReturnHome = () => {
-    router.push('/buy-crypto');
+    router.push('/');
   };
 
   if (status === 'loading') {

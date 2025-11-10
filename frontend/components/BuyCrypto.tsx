@@ -50,8 +50,10 @@ export default function BuyCrypto() {
   const [phoneValidation, setPhoneValidation] = useState<{
     status: 'idle' | 'loading' | 'success' | 'error';
     message?: string;
+    accountName?: string;
   }>({ status: 'idle' });
   const [selectedProvider, setSelectedProvider] = useState('');
+  const [validationStep, setValidationStep] = useState<'validate' | 'proceed'>('validate');
   const countryDropdownRef = useRef<HTMLDivElement>(null);
 
   // Auto-fill wallet address if connected
@@ -144,31 +146,15 @@ export default function BuyCrypto() {
     setIsCountryDropdownOpen(false);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!selectedCountry || !selectedChainId || !selectedToken || !amount || !walletAddress || !email || !phone) {
-      setError('Please fill in all required fields');
+  const handleValidatePhone = async () => {
+    // Validate basic fields first
+    if (!selectedCountry || !phone) {
+      setError('Please select a country and enter your phone number');
       return;
     }
 
-    // Validate country selection
     if (!selectedCountryData) {
       setError('Please select a valid country');
-      return;
-    }
-
-    // Validate amounts
-    const finalCryptoAmount = inputMode === 'crypto' ? amount : cryptoAmount;
-    const finalUsdAmount = inputMode === 'usd' ? amount : usdAmount;
-    
-    if (!finalCryptoAmount || parseFloat(finalCryptoAmount) <= 0) {
-      setError('Please enter a valid amount');
-      return;
-    }
-
-    if (!finalUsdAmount || parseFloat(finalUsdAmount) <= 0) {
-      setError('Amount must be greater than 0');
       return;
     }
 
@@ -206,28 +192,82 @@ export default function BuyCrypto() {
       const validationData = await validationResponse.json();
       const validationSucceeded =
         validationData.success && validationData.data?.status === 1;
+      
       if (validationSucceeded) {
+        const accountName = validationData.data?.data || 'Account verified';
         setPhoneValidation({
           status: 'success',
-          message: validationData.data?.data,
+          message: `Account verified: ${accountName}`,
+          accountName,
         });
+        setValidationStep('proceed'); // Move to proceed step
       } else if (validationResponse.ok) {
+        // HTTP 200 but Moolre returned status 0 - proceed with warning
         setPhoneValidation({
           status: 'success',
-          message: 'Validation service temporarily unavailable. Proceeding without account name.',
+          message: 'Validation service temporarily unavailable. You can proceed to payment.',
         });
+        setValidationStep('proceed');
       } else {
         setPhoneValidation({
           status: 'error',
           message:
             validationData.data?.message ||
             validationData.error ||
-            'Unable to confirm mobile money account.',
+            'Unable to confirm mobile money account. Please check the number and try again.',
         });
-        setLoading(false);
-        return;
       }
+    } catch (error) {
+      console.error('Validation error:', error);
+      setPhoneValidation({
+        status: 'error',
+        message: 'Failed to validate account. Please try again.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // If validation hasn't been done, validate first
+    if (validationStep === 'validate') {
+      await handleValidatePhone();
+      return;
+    }
+    
+    // Proceed with payment initialization
+    if (!selectedCountry || !selectedChainId || !selectedToken || !amount || !walletAddress || !email || !phone) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    // Validate country selection
+    if (!selectedCountryData) {
+      setError('Please select a valid country');
+      return;
+    }
+
+    // Validate amounts
+    const finalCryptoAmount = inputMode === 'crypto' ? amount : cryptoAmount;
+    const finalUsdAmount = inputMode === 'usd' ? amount : usdAmount;
+    
+    if (!finalCryptoAmount || parseFloat(finalCryptoAmount) <= 0) {
+      setError('Please enter a valid amount');
+      return;
+    }
+
+    if (!finalUsdAmount || parseFloat(finalUsdAmount) <= 0) {
+      setError('Amount must be greater than 0');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const sanitizedPhone = phone.replace(/\s+/g, '');
       const response = await fetch('/api/paystack/initialize', {
         method: 'POST',
         headers: {
@@ -256,14 +296,23 @@ export default function BuyCrypto() {
         // Redirect to Paystack payment page
         window.location.href = data.authorization_url;
       } else {
-        setError(data.error || 'Failed to initialize payment');
+        setError(data.error || 'Failed to initialize payment. Please try again.');
+        setLoading(false);
       }
-    } catch {
-      setError('Failed to process request');
-    } finally {
+    } catch (error) {
+      console.error('Payment initialization error:', error);
+      setError('Failed to process request. Please try again.');
       setLoading(false);
     }
   };
+
+  // Reset validation when phone or provider changes
+  useEffect(() => {
+    if (phone || selectedProvider) {
+      setValidationStep('validate');
+      setPhoneValidation({ status: 'idle' });
+    }
+  }, [phone, selectedProvider]);
 
   return (
     <Web3Container>
@@ -524,6 +573,8 @@ export default function BuyCrypto() {
                   onClick={() => {
                     setSelectedProvider(option.label);
                     setError(prev => (prev?.toLowerCase().includes('provider') ? '' : prev));
+                    setValidationStep('validate');
+                    setPhoneValidation({ status: 'idle' });
                   }}
                   className={`w-full px-3 py-2 rounded-lg border transition-colors ${
                     selectedProvider === option.label
@@ -566,32 +617,55 @@ export default function BuyCrypto() {
           <label className="block text-sm font-medium text-white mb-2">
             Phone Number
           </label>
-          <input
-            type="tel"
-            value={phone}
-            onChange={(e) => {
-              setPhone(e.target.value);
-              setPhoneValidation({ status: 'idle' });
-            }}
-            className="w-full p-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-indigo-200/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm"
-            placeholder="+1234567890"
-            required
-          />
+          <div className="flex gap-2">
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => {
+                setPhone(e.target.value);
+                setPhoneValidation({ status: 'idle' });
+                setValidationStep('validate');
+              }}
+              className="flex-1 p-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-indigo-200/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm"
+              placeholder="+1234567890"
+              required
+              disabled={loading}
+            />
+            {providerOptions.length > 0 && selectedProviderOption && phone && (
+              <Web3Button
+                type="button"
+                onClick={handleValidatePhone}
+                disabled={loading || phoneValidation.status === 'loading' || !phone || !selectedProviderOption}
+                className="px-4 whitespace-nowrap"
+              >
+                {phoneValidation.status === 'loading' 
+                  ? 'Validating...' 
+                  : phoneValidation.status === 'success'
+                  ? '✓ Verified'
+                  : 'Validate'}
+              </Web3Button>
+            )}
+          </div>
           <p className="text-sm text-indigo-200/70 mt-1">
-            For payment notifications
+            For payment notifications and account verification
           </p>
           {phoneValidation.status === 'loading' && (
-            <p className="text-xs text-indigo-200/70 mt-1">Validating account…</p>
+            <div className="mt-2 p-2 bg-blue-500/10 border border-blue-400/30 rounded-lg">
+              <p className="text-xs text-blue-300">Validating account name…</p>
+            </div>
           )}
           {phoneValidation.status === 'success' && (
-            <p className="text-xs text-green-400 mt-1">
-              Account name: {phoneValidation.message}
-            </p>
+            <div className="mt-2 p-2 bg-green-500/10 border border-green-400/30 rounded-lg">
+              <p className="text-xs text-green-300 font-medium">✓ {phoneValidation.message}</p>
+              {validationStep === 'proceed' && (
+                <p className="text-xs text-green-200/80 mt-1">You can now proceed to payment</p>
+              )}
+            </div>
           )}
           {phoneValidation.status === 'error' && (
-            <p className="text-xs text-orange-300 mt-1">
-              {phoneValidation.message}
-            </p>
+            <div className="mt-2 p-2 bg-orange-500/10 border border-orange-400/30 rounded-lg">
+              <p className="text-xs text-orange-300">{phoneValidation.message}</p>
+            </div>
           )}
         </div>
 
@@ -629,15 +703,33 @@ export default function BuyCrypto() {
         {/* Submit Button */}
         <Web3Button
           type="submit"
-          disabled={loading || !selectedChainId || !selectedToken}
+          disabled={
+            loading || 
+            !selectedChainId || 
+            !selectedToken || 
+            !amount || 
+            !walletAddress || 
+            !email || 
+            !phone ||
+            (providerOptions.length > 0 && validationStep === 'validate' && phoneValidation.status !== 'success')
+          }
           className="w-full"
         >
           {loading 
-            ? 'Processing...' 
+            ? (validationStep === 'validate' ? 'Validating...' : 'Processing...')
+            : validationStep === 'validate' && providerOptions.length > 0 && phone
+            ? 'Validate Number First'
+            : validationStep === 'proceed' && phoneValidation.status === 'success'
+            ? `Proceed to Payment - Buy ${selectedToken?.symbol || ''}`
             : selectedToken 
             ? `Buy ${selectedToken.symbol}` 
             : 'Select Token to Continue'}
         </Web3Button>
+        {validationStep === 'validate' && providerOptions.length > 0 && phone && phoneValidation.status === 'idle' && (
+          <p className="text-xs text-indigo-300/70 mt-2 text-center">
+            Please validate your mobile money number before proceeding to payment
+          </p>
+        )}
       </form>
       </Web3Card>
 
