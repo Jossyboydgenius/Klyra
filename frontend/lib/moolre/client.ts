@@ -26,22 +26,54 @@ type SendSmsParams = {
   messages: SendSmsMessage[];
 };
 
-const getEnv = (key: string, fallbackKey?: string) =>
-  process.env[key] ?? (fallbackKey ? process.env[fallbackKey] : undefined);
+const getEnv = (...keys: (string | undefined)[]) => {
+  for (const key of keys) {
+    if (!key) continue;
+    const value = process.env[key];
+    if (value !== undefined) {
+      return value;
+    }
+  }
+  return undefined;
+};
 
 const buildBaseUrl = () => {
   const raw =
-    getEnv('MOOLRE_API_BASE_URL', 'NEXT_PUBLIC_MOOLRE_API_BASE_URL') ??
-    'https://api.moolre.com';
+    getEnv(
+      'MOOLRE_API_BASE_URL',
+      'NEXT_PUBLIC_MOOLRE_API_BASE_URL',
+      'MOORLE_API_BASE_URL',
+      'NEXT_PUBLIC_MOORLE_API_BASE_URL',
+    ) ?? 'https://api.moolre.com';
 
   return raw.replace(/\/$/, '');
 };
 
 const getCredentials = () => {
   const baseUrl = buildBaseUrl();
-  const apiUser = process.env.NEXT_PUBLIC_MOOLRE_USERNAME ?? '';
-  const apiKey = process.env.NEXT_PUBLIC_MOOLRE_PUBLIC_API_KEY ?? '';
-  const accountNumber = process.env.NEXT_PUBLIC_MOOLRE_ACCOUNT_NUMBER ?? '';
+  const apiUser =
+    getEnv(
+      'MOOLRE_USERNAME',
+      'NEXT_PUBLIC_MOOLRE_USERNAME',
+      'MOORLE_USERNAME',
+      'NEXT_PUBLIC_MOORLE_USERNAME',
+    ) ?? '';
+  const apiKey =
+    getEnv(
+      'MOOLRE_PRIVATE_API_KEY',
+      'NEXT_PUBLIC_MOOLRE_PRIVATE_API_KEY',
+      'MOORLE_PRIVATE_API_KEY',
+      'NEXT_PUBLIC_MOORLE_PRIVATE_API_KEY',
+      'NEXT_PUBLIC_MOOLRE_PUBLIC_API_KEY',
+      'NEXT_PUBLIC_MOORLE_PUBLIC_API_KEY',
+    ) ?? '';
+  const accountNumber =
+    getEnv(
+      'MOOLRE_ACCOUNT_NUMBER',
+      'NEXT_PUBLIC_MOOLRE_ACCOUNT_NUMBER',
+      'MOORLE_ACCOUNT_NUMBER',
+      'NEXT_PUBLIC_MOORLE_ACCOUNT_NUMBER',
+    ) ?? '';
 
   if (!apiUser || !apiKey || !accountNumber) {
     throw new Error(
@@ -54,9 +86,19 @@ const getCredentials = () => {
 
 const getSmsCredentials = () => {
   const senderId =
-    getEnv('MOOLRE_SMS_SENDER_ID', 'NEXT_PUBLIC_MOOLRE_SMS_SENDER_ID') ?? '';
+    getEnv(
+      'MOOLRE_SMS_SENDER_ID',
+      'NEXT_PUBLIC_MOOLRE_SMS_SENDER_ID',
+      'MOORLE_SMS_SENDER_ID',
+      'NEXT_PUBLIC_MOORLE_SMS_SENDER_ID',
+    ) ?? '';
   const smsApiKey =
-    getEnv('MOOLRE_SMS_API_KEY', 'NEXT_PUBLIC_MOOLRE_SMS_API_KEY') ?? '';
+    getEnv(
+      'MOOLRE_SMS_API_KEY',
+      'NEXT_PUBLIC_MOOLRE_SMS_API_KEY',
+      'MOORLE_SMS_API_KEY',
+      'NEXT_PUBLIC_MOORLE_SMS_API_KEY',
+    ) ?? '';
 
   if (!smsApiKey) {
     throw new Error(

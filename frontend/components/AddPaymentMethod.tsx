@@ -318,11 +318,9 @@ const handleInputChange = (field: string, value: string) => {
         const accountName =
           typeof data.data.data === 'string' ? data.data.data : '';
         setFormData(prev => {
-          const next = {
-            ...prev,
-            validated_name: accountName,
-            validation_status: 'verified' as const,
-          };
+          const next: typeof prev = { ...prev };
+          next.validated_name = accountName;
+          next.validation_status = 'verified';
 
           if (type === 'momo' && channel) {
             next.name = accountName;
@@ -349,10 +347,8 @@ const handleInputChange = (field: string, value: string) => {
             'Validation service temporarily unavailable. Proceeding without account name.',
         });
         setFormData(prev => {
-          const next = {
-            ...prev,
-            validation_status: 'verified' as const,
-          };
+          const next: typeof prev = { ...prev };
+          next.validation_status = 'verified';
 
           if (type === 'momo' && channel) {
             next.provider_channel = channel.toString();
