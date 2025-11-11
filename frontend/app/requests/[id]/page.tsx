@@ -81,7 +81,7 @@ export default function PaymentRequestPage() {
           address,
           token: srcToken,
           chain: srcChain,
-          amount: '0', // Will be calculated
+          amount: request.amount, // Will be calculated
         },
         recipient: {
           address: request.merchant.address,
