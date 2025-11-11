@@ -25,6 +25,7 @@ import { Web3Container, Web3Card } from '../components/Web3Theme';
 import { ArrowLeft, User, LogOut, ChevronDown, Wallet, Settings } from 'lucide-react';
 import { useAccount, useDisconnect } from 'wagmi';
 import { Transaction } from '@/lib/database/supabase-client';
+import { AppKitWalletConnectButton } from '@/components/wallet/AppKitWalletConnectButton';
 
 const supabase = createClient(
   `https://${projectId}.supabase.co`,
@@ -106,7 +107,7 @@ const App: React.FC = () => {
         setIsLoading(false);
         return;
       }
-      
+
       if (session?.access_token) {
         setAccessToken(session.access_token);
         await loadUserData(session.access_token);
@@ -136,11 +137,11 @@ const App: React.FC = () => {
         }
       }
     };
-    
+
     if (showUserDropdown) {
       document.addEventListener('mousedown', handleClickOutside);
     }
-    
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
@@ -227,6 +228,7 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
+
             {user && (
               <div className="relative" ref={userDropdownRef}>
                 <button
@@ -252,7 +254,7 @@ const App: React.FC = () => {
                     className={`h-5 w-5 transition-transform ${showUserDropdown ? 'rotate-180' : ''}`}
                   />
                 </button>
-                
+
                 {showUserDropdown && (
                   <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
                     <button

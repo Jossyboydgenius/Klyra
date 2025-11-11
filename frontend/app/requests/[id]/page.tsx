@@ -171,7 +171,7 @@ export default function PaymentRequestPage() {
           <Card className="mb-6 shadow-xl">
             <CardContent className="py-8 flex flex-col items-center gap-4">
               <p className="text-lg font-medium">Connect wallet to pay</p>
-              <WalletConnect autoShowModal={true} />
+              <AppKitWalletConnectButton />
             </CardContent>
           </Card>
         )}

@@ -4,6 +4,7 @@ import type { Metadata, Viewport } from "next";
 import { Outfit } from 'next/font/google';
 import "./globals.css";
 import { Providers } from "./providers";
+import { headers } from "next/headers";
 
 const outfit = Outfit({
   subsets: ['latin'],
@@ -63,11 +64,13 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const headersObj = await headers();
+  const cookies = headersObj.get('cookie') ?? null;
   return (
     <html lang="en">
       <head>
@@ -85,7 +88,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/apple-touch-icon.svg" />
       </head>
       <body className={`${outfit.variable} font-sans bg-background antialiased`} suppressHydrationWarning={true}>
-        <Providers>{children}</Providers>
+        <Providers cookies={cookies}>{children}</Providers>
       </body>
     </html>
   );

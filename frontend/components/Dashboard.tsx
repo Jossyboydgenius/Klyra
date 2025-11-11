@@ -6,11 +6,11 @@ import { CRYPTO_INFO } from '../lib/constants';
 import { formatAmount } from '../lib/helpers';
 import { Web3Container, Web3Card, Web3Button } from './Web3Theme';
 import { Badge } from './ui/badge';
-import { 
-  Wallet, 
-  CreditCard, 
-  Smartphone, 
-  TrendingUp, 
+import {
+  Wallet,
+  CreditCard,
+  Smartphone,
+  TrendingUp,
   RefreshCw,
   Plus,
   Send,
@@ -31,6 +31,8 @@ import { useRouter } from 'next/navigation';
 import { useWalletBalances } from '@/hooks/useWalletBalances';
 import { getChainLogo } from '@/lib/chain-logos';
 import Image from 'next/image';
+import ConnectButton from './ConnectButton';
+
 
 interface DashboardProps {
   user: any;
@@ -40,26 +42,26 @@ interface DashboardProps {
   onRefresh: () => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ 
-  user, 
-  balances, 
-  paymentMethods, 
-  onNavigate, 
-  onRefresh 
+export const Dashboard: React.FC<DashboardProps> = ({
+  user,
+  balances,
+  paymentMethods,
+  onNavigate,
+  onRefresh
 }) => {
   const [showBalances, setShowBalances] = useState(true);
   const [currency, setCurrency] = useState('GHS');
   const [includeTestnets, setIncludeTestnets] = useState(false);
   const { address, isConnected } = useAccount();
   const router = useRouter();
-  
+
   // Get real wallet balances with enhanced features
-  const { 
-    balances: walletBalances, 
+  const {
+    balances: walletBalances,
     initialBalances,
     isLoading: isLoadingBalances,
     refresh: refreshBalances,
-    hasMore 
+    hasMore
   } = useWalletBalances(
     address,
     undefined,
@@ -97,7 +99,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     walletBalances.forEach((balance) => {
       // Use fallback price from CRYPTO_INFO or estimate
       const cryptoInfo = CRYPTO_INFO[balance.token.symbol as keyof typeof CRYPTO_INFO];
-      const price = cryptoInfo 
+      const price = cryptoInfo
         ? (currency === 'GHS' ? cryptoInfo.price_ghs : cryptoInfo.price_usd)
         : 0;
       const value = parseFloat(balance.balanceFormatted) * price;
@@ -156,7 +158,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const activeAssets = React.useMemo(() => {
     // Use displayBalances (limited) for dashboard, full balances for "View All"
     const balancesToUse = displayBalances;
-    
+
     if (isConnected && balancesToUse && balancesToUse.length > 0) {
       // Return real wallet balances (limited to initial display)
       // Balances update progressively - new ones appear as they're found
@@ -170,7 +172,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         chainData: balance.chain, // Include full chain data for testnet detection
       }));
     }
-    
+
     // Fallback to dummy data (only if wallet not connected)
     if (!isConnected && balances?.crypto) {
       return Object.entries(balances.crypto)
@@ -185,7 +187,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           chainData: null,
         }));
     }
-    
+
     return [];
   }, [displayBalances, isConnected, balances]);
 
@@ -210,13 +212,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </h1>
           <p className="text-indigo-200/80 text-sm">Manage your finances in one place</p>
         </div>
-        <Web3Button 
-          variant="secondary" 
+        <Web3Button
+          variant="secondary"
           onClick={() => {
             refreshBalances();
             onRefresh();
-          }} 
-          className="p-2" 
+          }}
+          className="p-2"
           icon
           disabled={isLoadingBalances}
         >
@@ -250,7 +252,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </Badge>
           </div>
         </div>
-        
+
         <div className="flex gap-2">
           <Web3Button
             variant="secondary"
@@ -271,7 +273,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               Web3 Wallet
             </h3>
             <p className="text-sm text-indigo-200/80">
-              {isConnected 
+              {isConnected
                 ? `Connected: ${address?.slice(0, 6)}...${address?.slice(-4)}`
                 : 'Connect your wallet to use cross-chain payments'
               }
@@ -280,7 +282,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
             {!isConnected && (
               <div className="w-full sm:w-[200px]">
-                <WalletConnect />
+                {/* <WalletConnect /> */}
+                {/* <appkit-button /> */}
+                <ConnectButton />
               </div>
             )}
             {isConnected && (
@@ -331,31 +335,31 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       {/* Quick Actions */}
       <div className="grid grid-cols-4 gap-3 mb-6">
-        <Web3Button 
+        <Web3Button
           className="h-16 flex flex-col gap-1"
           onClick={() => handleQuickAction('buy')}
         >
           <Plus className="w-5 h-5" />
           <span className="text-sm">Buy</span>
         </Web3Button>
-        <Web3Button 
-          variant="secondary" 
+        <Web3Button
+          variant="secondary"
           className="h-16 flex flex-col gap-1"
           onClick={() => handleQuickAction('sell')}
         >
           <ArrowDownLeft className="w-5 h-5" />
           <span className="text-sm">Sell</span>
         </Web3Button>
-        <Web3Button 
-          variant="secondary" 
+        <Web3Button
+          variant="secondary"
           className="h-16 flex flex-col gap-1"
           onClick={() => handleQuickAction('send')}
         >
           <Send className="w-5 h-5" />
           <span className="text-sm">Send</span>
         </Web3Button>
-        <Web3Button 
-          variant="secondary" 
+        <Web3Button
+          variant="secondary"
           className="h-16 flex flex-col gap-1"
           onClick={() => handleQuickAction('transactions')}
         >
@@ -371,8 +375,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <CreditCard className="w-5 h-5" />
             Payment Methods
           </h3>
-          <Web3Button 
-            variant="ghost" 
+          <Web3Button
+            variant="ghost"
             onClick={() => onNavigate('payment-methods')}
             className="text-blue-400"
           >
@@ -385,7 +389,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="grid grid-cols-2 gap-3">
             {paymentMethods.slice(0, 4).map((method) => {
               const IconComponent = getPaymentMethodIcon(method.type);
-              
+
               return (
                 <Web3Card key={method.id} className="p-4">
                   <div className="text-center space-y-2">
@@ -407,9 +411,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </Web3Card>
               );
             })}
-            
+
             {paymentMethods.length < 4 && (
-              <Web3Card 
+              <Web3Card
                 className="p-4 cursor-pointer hover:bg-white/10 transition-all duration-300 border-dashed border-2 border-white/20 hover:border-blue-400/50"
                 onClick={() => onNavigate('payment-methods')}
               >
@@ -423,7 +427,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             )}
           </div>
         ) : (
-          <Web3Card 
+          <Web3Card
             className="p-6 text-center cursor-pointer hover:bg-white/10 transition-all duration-300 border-dashed border-2 border-white/20 hover:border-blue-400/50"
             onClick={() => onNavigate('payment-methods')}
           >
@@ -453,24 +457,24 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
           <div className="flex flex-wrap gap-2">
             {isConnected && (
-              <Web3Button 
-                variant="ghost" 
+              <Web3Button
+                variant="ghost"
                 onClick={() => setIncludeTestnets(!includeTestnets)}
                 className="text-blue-400 text-xs"
               >
                 {includeTestnets ? 'Hide Testnets' : 'Show Testnets'}
               </Web3Button>
             )}
-            <Web3Button 
-              variant="ghost" 
+            <Web3Button
+              variant="ghost"
               onClick={() => onNavigate('add-network-token')}
               className="text-blue-400 text-xs"
             >
               <Plus className="w-4 h-4 mr-1" />
               Add
             </Web3Button>
-            <Web3Button 
-              variant="ghost" 
+            <Web3Button
+              variant="ghost"
               onClick={() => onNavigate('wallet')}
               className="text-blue-400 text-xs"
             >
@@ -489,7 +493,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <Wallet className="w-12 h-12 text-indigo-200/70 mx-auto mb-3" />
             <p className="text-indigo-200/70 mb-3">Connect your wallet to view balances</p>
             <div className="w-[200px] mx-auto">
-              <WalletConnect />
+              {/* <WalletConnect /> */}
+              <ConnectButton />
             </div>
           </Web3Card>
         ) : activeAssets.length > 0 ? (
@@ -498,14 +503,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
             {activeAssets.slice(0, 3).map((asset: any, index: number) => {
               const chainLogo = asset.chainId ? getChainLogo(asset.chainId, asset.chainData?.testnet || false) : null;
               const cryptoInfo = CRYPTO_INFO[asset.symbol as keyof typeof CRYPTO_INFO];
-              const price = cryptoInfo 
+              const price = cryptoInfo
                 ? (currency === 'GHS' ? cryptoInfo.price_ghs : cryptoInfo.price_usd)
                 : 0;
               const fiatValue = asset.amount * price;
-              
+
               return (
-                <Web3Card 
-                  key={`${asset.symbol}-${asset.chainId}-${index}`} 
+                <Web3Card
+                  key={`${asset.symbol}-${asset.chainId}-${index}`}
                   className="p-4 cursor-pointer hover:bg-white/10 transition-all duration-300"
                   onClick={() => onNavigate('wallet')}
                 >
@@ -513,8 +518,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     <div className="flex items-center gap-3">
                       {chainLogo ? (
                         <div className="relative">
-                          <Image 
-                            src={chainLogo} 
+                          <Image
+                            src={chainLogo}
                             alt={asset.chain}
                             width={48}
                             height={48}
@@ -549,7 +554,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         </p>
                       </div>
                     </div>
-                    
+
                     <div className="text-right">
                       <p className="font-semibold text-white">
                         {formatCryptoAmount(asset.amount, asset.symbol)}

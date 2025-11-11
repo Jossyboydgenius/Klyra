@@ -1,46 +1,45 @@
 "use client";
 
 import { type ReactNode, useEffect } from "react";
-import { WagmiProvider, createConfig, http } from "wagmi";
+import { Config, WagmiProvider, cookieToInitialState, createConfig, http } from "wagmi";
 import { base, mainnet, sepolia, baseSepolia, polygon, arbitrum, optimism } from "wagmi/chains";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MiniKitProvider } from "@coinbase/onchainkit/minikit";
 import { coinbaseWallet } from "wagmi/connectors";
 import { NetworkProvider } from "@/contexts/NetworkContext";
+import { createAppKit } from "@reown/appkit";
+import { config, projectId, wagmiAdapter } from "@/contexts/wagmi";
 
-// Create wagmi config with Coinbase Wallet connector
-const wagmiConfig = createConfig({
-  chains: [base, mainnet, sepolia, baseSepolia, polygon, arbitrum, optimism],
-  connectors: [
-    coinbaseWallet({
-      appName: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME || "Klyra",
-      preference: "smartWalletOnly", // Use smart wallet for better UX
-    }),
-  ],
-  transports: {
-    [base.id]: http(),
-    [mainnet.id]: http(),
-    [sepolia.id]: http(),
-    [baseSepolia.id]: http(),
-    [polygon.id]: http(),
-    [arbitrum.id]: http(),
-    [optimism.id]: http(),
-  },
-  ssr: true,
-});
 
-// Create QueryClient instance
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 60 * 1000, // 1 minute
-      refetchOnWindowFocus: false,
-    },
-  },
-});
+// Set up queryClient
+const queryClient = new QueryClient()
 
-export function Providers(props: { children: ReactNode }) {
+if (!projectId) {
+  throw new Error('Project ID is not defined')
+}
+
+// Set up metadata
+const metadata = {
+  name: 'appkit-example',
+  description: 'AppKit Example',
+  url: 'https://appkitexampleapp.com', // origin must match your domain & subdomain
+  icons: ['https://avatars.githubusercontent.com/u/179229932']
+}
+
+// Create the modal
+const modal = createAppKit({
+  adapters: [wagmiAdapter],
+  projectId,
+  networks: [base, mainnet, sepolia, baseSepolia, polygon, arbitrum, optimism],
+  defaultNetwork: mainnet,
+  metadata: metadata,
+  features: {
+    analytics: true // Optional - defaults to your Cloud configuration
+  }
+})
+export function Providers(props: { children: ReactNode; cookies: string | null }) {
   // Suppress non-critical OnchainKit analytics errors
+  const initialState = cookieToInitialState(wagmiAdapter.wagmiConfig as Config, props.cookies)
   useEffect(() => {
     const originalError = console.error;
     const originalWarn = console.warn;
@@ -75,7 +74,7 @@ export function Providers(props: { children: ReactNode }) {
   }, []);
 
   return (
-    <WagmiProvider config={wagmiConfig}>
+    <WagmiProvider config={config} initialState={initialState}>
       <QueryClientProvider client={queryClient}>
         <NetworkProvider>
           <MiniKitProvider>
