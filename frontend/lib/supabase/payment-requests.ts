@@ -142,7 +142,7 @@ function mapToPaymentRequest(data: PaymentRequestDB): PaymentRequest {
     paidAt: data.paid_at ? new Date(data.paid_at) : undefined,
     paidBy: data.paid_by,
     transactionHash: data.transaction_hash,
-    paymentLink: `${process.env.NEXT_PUBLIC_URL}/pay/${data.id}`,
+    paymentLink: `${process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/requests/${data.id}`,
   };
 }
 
