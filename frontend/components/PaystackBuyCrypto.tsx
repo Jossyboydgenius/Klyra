@@ -69,10 +69,10 @@ export default function PaystackBuyCrypto() {
   useEffect(() => {
     if (amount && selectedAsset) {
       // Mock exchange rate calculation - in production, fetch from API
-      const mockRate = selectedAsset.symbol === 'USDC' ? 1 : 
-                      selectedAsset.symbol === 'USDT' ? 1 :
-                      selectedAsset.symbol === 'ETH' ? 0.0003 : 1;
-      
+      const mockRate = selectedAsset.symbol === 'USDC' ? 1 :
+        selectedAsset.symbol === 'USDT' ? 1 :
+          selectedAsset.symbol === 'ETH' ? 0.0003 : 1;
+
       const crypto = (parseFloat(amount) * mockRate).toFixed(6);
       setCryptoAmount(crypto);
       setExchangeRate(mockRate);
@@ -109,10 +109,11 @@ export default function PaystackBuyCrypto() {
 
       const data = await response.json();
 
+
       if (data.success) {
         setPaymentReference(data.data.reference);
         setCurrentStep(2);
-        
+
         // Initialize Paystack payment
         const redirectUrl =
           data.data.authorization_url ||
@@ -180,7 +181,7 @@ export default function PaystackBuyCrypto() {
     setCryptoAmount('');
   };
 
-  const availableNetworks = selectedAsset ? 
+  const availableNetworks = selectedAsset ?
     NETWORKS.filter(network => selectedAsset.networks.includes(network.id)) : [];
 
   return (
@@ -190,17 +191,15 @@ export default function PaystackBuyCrypto() {
         <div className="flex items-center justify-between">
           {[1, 2, 3, 4].map((step) => (
             <div key={step} className="flex items-center">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                currentStep >= step 
-                  ? 'bg-blue-600 text-white' 
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${currentStep >= step
+                  ? 'bg-blue-600 text-white'
                   : 'bg-gray-200 text-gray-600'
-              }`}>
+                }`}>
                 {step}
               </div>
               {step < 4 && (
-                <div className={`w-16 h-1 mx-2 ${
-                  currentStep > step ? 'bg-blue-600' : 'bg-gray-200'
-                }`} />
+                <div className={`w-16 h-1 mx-2 ${currentStep > step ? 'bg-blue-600' : 'bg-gray-200'
+                  }`} />
               )}
             </div>
           ))}
@@ -230,8 +229,8 @@ export default function PaystackBuyCrypto() {
           {/* Country Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Country</label>
-            <select 
-              value={selectedCountry?.code || ''} 
+            <select
+              value={selectedCountry?.code || ''}
               onChange={(e) => {
                 const country = COUNTRIES.find(c => c.code === e.target.value);
                 setSelectedCountry(country || null);
@@ -250,8 +249,8 @@ export default function PaystackBuyCrypto() {
           {/* Crypto Asset Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Cryptocurrency</label>
-            <select 
-              value={selectedAsset?.symbol || ''} 
+            <select
+              value={selectedAsset?.symbol || ''}
               onChange={(e) => {
                 const asset = CRYPTO_ASSETS.find(a => a.symbol === e.target.value);
                 setSelectedAsset(asset || null);
@@ -277,8 +276,8 @@ export default function PaystackBuyCrypto() {
           {selectedAsset && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Network</label>
-              <select 
-                value={selectedNetwork?.id || ''} 
+              <select
+                value={selectedNetwork?.id || ''}
                 onChange={(e) => {
                   const network = availableNetworks.find(n => n.id === e.target.value);
                   setSelectedNetwork(network || null);
@@ -365,11 +364,10 @@ export default function PaystackBuyCrypto() {
               <button
                 type="button"
                 onClick={() => setPaymentMethod('mobile_money')}
-                className={`p-4 border rounded-lg text-center ${
-                  paymentMethod === 'mobile_money'
+                className={`p-4 border rounded-lg text-center ${paymentMethod === 'mobile_money'
                     ? 'border-blue-500 bg-blue-50 text-blue-700'
                     : 'border-gray-300 hover:border-gray-400'
-                }`}
+                  }`}
               >
                 <div className="text-2xl mb-2">📱</div>
                 <div className="font-medium">Mobile Money</div>
@@ -378,11 +376,10 @@ export default function PaystackBuyCrypto() {
               <button
                 type="button"
                 onClick={() => setPaymentMethod('bank_transfer')}
-                className={`p-4 border rounded-lg text-center ${
-                  paymentMethod === 'bank_transfer'
+                className={`p-4 border rounded-lg text-center ${paymentMethod === 'bank_transfer'
                     ? 'border-blue-500 bg-blue-50 text-blue-700'
                     : 'border-gray-300 hover:border-gray-400'
-                }`}
+                  }`}
               >
                 <div className="text-2xl mb-2">🏦</div>
                 <div className="font-medium">Bank Transfer</div>
