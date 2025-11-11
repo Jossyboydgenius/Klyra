@@ -54,8 +54,16 @@ export default function RequestPaymentPage() {
 
       setCreatedRequest(request);
     } catch (err: any) {
-      setError(err.message || 'Failed to create payment request');
-      console.error('Create request error:', err);
+      const errorMessage = err.message || 'Failed to create payment request';
+      setError(errorMessage);
+      console.error('[Request Payment] Create request error:', err);
+      
+      // Provide helpful error message if table doesn't exist
+      if (errorMessage.includes('does not exist') || errorMessage.includes('PGRST204')) {
+        setError(
+          'Payment requests feature is not available. The database table needs to be created. Please contact support or check server logs.'
+        );
+      }
     } finally {
       setIsCreating(false);
     }

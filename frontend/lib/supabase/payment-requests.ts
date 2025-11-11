@@ -21,6 +21,7 @@ export interface PaymentRequestDB {
   metadata: any;
   status: string;
   created_at: string;
+  updated_at: string;
   expires_at: string;
   paid_at?: string;
   paid_by?: string;
@@ -62,7 +63,24 @@ export async function createPaymentRequest(data: {
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    console.error('[Payment Requests] Error creating payment request:', error);
+    console.error('[Payment Requests] Error details:', {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    });
+    
+    // Provide helpful error message
+    if (error.code === 'PGRST204' || error.message?.includes('does not exist')) {
+      throw new Error(
+        'Payment requests table does not exist. Please run the database migration to create the payment_requests table.'
+      );
+    }
+    
+    throw new Error(error.message || 'Failed to create payment request');
+  }
 
   return mapToPaymentRequest(result);
 }
@@ -74,7 +92,15 @@ export async function getPaymentRequest(id: string): Promise<PaymentRequest | nu
     .eq('id', id)
     .single();
 
-  if (error || !data) return null;
+  if (error) {
+    console.error('[Payment Requests] Error getting payment request:', error);
+    if (error.code === 'PGRST204' || error.message?.includes('does not exist')) {
+      console.error('[Payment Requests] Payment requests table does not exist. Run migration 002_create_payment_requests_table.sql');
+    }
+    return null;
+  }
+
+  if (!data) return null;
 
   return mapToPaymentRequest(data);
 }
@@ -98,7 +124,15 @@ export async function updatePaymentRequest(
     })
     .eq('id', id);
 
-  if (error) throw error;
+  if (error) {
+    console.error('[Payment Requests] Error updating payment request:', error);
+    if (error.code === 'PGRST204' || error.message?.includes('does not exist')) {
+      throw new Error(
+        'Payment requests table does not exist. Please run the database migration to create the payment_requests table.'
+      );
+    }
+    throw new Error(error.message || 'Failed to update payment request');
+  }
 }
 
 export async function getPaymentRequestsByMerchant(merchantAddress: string): Promise<PaymentRequest[]> {
@@ -108,7 +142,16 @@ export async function getPaymentRequestsByMerchant(merchantAddress: string): Pro
     .eq('merchant_address', merchantAddress)
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
+  if (error) {
+    console.error('[Payment Requests] Error getting payment requests by merchant:', error);
+    if (error.code === 'PGRST204' || error.message?.includes('does not exist')) {
+      console.error('[Payment Requests] Payment requests table does not exist. Run migration 002_create_payment_requests_table.sql');
+      return []; // Return empty array instead of throwing
+    }
+    throw new Error(error.message || 'Failed to get payment requests');
+  }
+
+  if (!data) return [];
 
   return data.map(mapToPaymentRequest);
 }
@@ -149,30 +192,3 @@ function mapToPaymentRequest(data: PaymentRequestDB): PaymentRequest {
 function generatePaymentId(): string {
   return `pay_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
 }
-
-// SQL Migration for payment_requests table:
-/*
-CREATE TABLE payment_requests (
-  id TEXT PRIMARY KEY,
-  merchant_name TEXT NOT NULL,
-  merchant_address TEXT NOT NULL,
-  chain_id INTEGER NOT NULL,
-  token_address TEXT NOT NULL,
-  token_symbol TEXT NOT NULL,
-  token_decimals INTEGER NOT NULL,
-  amount TEXT NOT NULL,
-  description TEXT NOT NULL,
-  metadata JSONB DEFAULT '{}',
-  status TEXT DEFAULT 'pending',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-  paid_at TIMESTAMP WITH TIME ZONE,
-  paid_by TEXT,
-  transaction_hash TEXT
-);
-
-CREATE INDEX idx_payment_requests_merchant ON payment_requests(merchant_address);
-CREATE INDEX idx_payment_requests_status ON payment_requests(status);
-CREATE INDEX idx_payment_requests_created_at ON payment_requests(created_at DESC);
-*/
-
