@@ -21,6 +21,7 @@ import { transactionExecutor } from '@/lib/transaction-executor';
 import type { PaymentRequest, UnifiedRoute, PaymentIntent, CrossChainTransaction } from '@/lib/payment-types';
 import type { Token } from '@/lib/chain-data';
 import { useConfig } from 'wagmi';
+import ConnectButton from '@/components/ConnectButton';
 
 export default function PaymentRequestPage() {
   const params = useParams();
@@ -171,7 +172,7 @@ export default function PaymentRequestPage() {
           <Card className="mb-6 shadow-xl">
             <CardContent className="py-8 flex flex-col items-center gap-4">
               <p className="text-lg font-medium">Connect wallet to pay</p>
-              <AppKitWalletConnectButton />
+              <ConnectButton />
             </CardContent>
           </Card>
         )}
