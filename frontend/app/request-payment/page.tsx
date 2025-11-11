@@ -17,7 +17,7 @@ import QRCode from 'react-qr-code';
 import { createPaymentRequest } from '@/lib/supabase/payment-requests';
 import type { Token } from '@/lib/chain-data';
 import type { PaymentRequest } from '@/lib/payment-types';
-
+import ConnectButton from '@/components/ConnectButton';
 export default function RequestPaymentPage() {
   const { address, isConnected } = useAccount();
 
@@ -63,7 +63,7 @@ export default function RequestPaymentPage() {
       const errorMessage = err.message || 'Failed to create payment request';
       setError(errorMessage);
       console.error('[Request Payment] Create request error:', err);
-      
+
       // Provide helpful error message if table doesn't exist
       if (errorMessage.includes('does not exist') || errorMessage.includes('PGRST204')) {
         setError(
@@ -166,7 +166,8 @@ export default function RequestPaymentPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col items-center gap-4 py-8">
-              <WalletConnect autoShowModal={true} />
+              {/* <WalletConnect autoShowModal={true} /> */}
+              <ConnectButton />
             </CardContent>
           </Card>
         </div>
