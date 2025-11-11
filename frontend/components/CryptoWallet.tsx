@@ -17,7 +17,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { useAccount } from 'wagmi';
-import { useWalletBalances } from '@/hooks/useWalletBalances';
+import { useWalletBalancesMulticall as useWalletBalances } from '@/hooks/useWalletBalancesMulticall';
 import { getChainLogo } from '@/lib/chain-logos';
 import { CRYPTO_INFO } from '@/lib/constants';
 import Image from 'next/image';

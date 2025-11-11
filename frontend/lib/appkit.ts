@@ -42,7 +42,7 @@ const metadata = {
     'Klyra – connect banks, mobile money, and crypto wallets in a unified experience.',
   url: appUrl,
   icons: [`${appUrl}/favicon.ico`],
-};
+};  
 
 let appKitInstance: ReturnType<typeof createAppKit> | undefined;
 

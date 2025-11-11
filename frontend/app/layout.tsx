@@ -1,15 +1,21 @@
 import "@coinbase/onchainkit/styles.css";
 import "./theme.css";
 import type { Metadata, Viewport } from "next";
-import { Outfit } from 'next/font/google';
+import { Outfit, Montserrat } from 'next/font/google';
 import "./globals.css";
 import { Providers } from "./providers";
 import { headers } from "next/headers";
 
-const outfit = Outfit({
+// const outfit = Outfit({
+//   subsets: ['latin'],
+//   display: 'swap',
+//   variable: '--font-outfit',
+// });
+
+const montserrat = Montserrat({
   subsets: ['latin'],
   display: 'swap',
-  variable: '--font-outfit',
+  variable: '--font-montserrat',
 });
 
 export const viewport: Viewport = {
@@ -87,7 +93,7 @@ export default async function RootLayout({
         <link rel="icon" type="image/x-icon" href="/favicon.ico" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.svg" />
       </head>
-      <body className={`${outfit.variable} font-sans bg-background antialiased`} suppressHydrationWarning={true}>
+      <body className={`${montserrat.variable} font-sans bg-background antialiased`} suppressHydrationWarning={true}>
         <Providers cookies={cookies}>{children}</Providers>
       </body>
     </html>

@@ -28,7 +28,7 @@ import {
 import { WalletConnect } from './WalletConnect';
 import { useAccount } from 'wagmi';
 import { useRouter } from 'next/navigation';
-import { useWalletBalances } from '@/hooks/useWalletBalances';
+import { useWalletBalancesMulticall as useWalletBalances } from '@/hooks/useWalletBalancesMulticall';
 import { getChainLogo } from '@/lib/chain-logos';
 import Image from 'next/image';
 import ConnectButton from './ConnectButton';
