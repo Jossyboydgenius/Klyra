@@ -1,4 +1,4 @@
-# Klyra - Crypto Payment & Wallet Management Platform
+# Klyra - Crypto Payment & Wallet Management Platform.
 
 A comprehensive cryptocurrency payment and wallet management platform built with Next.js, TypeScript, and Supabase. kLYRA enables users to buy, sell, send, and manage cryptocurrencies with a modern, intuitive interface.
 
